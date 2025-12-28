@@ -1,0 +1,2 @@
+rootProject.name = 'untitledgame-libgdx'
+include 'core', 'desktop'

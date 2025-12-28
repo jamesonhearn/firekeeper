@@ -1,0 +1,119 @@
+package com.untitledgame.logic;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
+/**
+ * basic health container so entities can track health without
+ * storing combat logic directly into NPCs.
+ */
+public class HealthComponent {
+    private int current;
+    private final int max;
+    private final int armor;
+    private final int invulnerabilityFrames;
+    private int invulnerabilityRemaining;
+    private final List<Consumer<Entity>> deathCallbacks = new ArrayList<>();
+
+    public HealthComponent(int max) {
+        this(max, max, 0, 0);
+    }
+
+    public HealthComponent(int current, int max, int armor, int invulnerabilityFrames) {
+        this.current = Math.min(current, max);
+        this.max = max;
+        this.armor = Math.max(0, armor);
+        this.invulnerabilityFrames = Math.max(0, invulnerabilityFrames);
+    }
+
+    public int current() {
+        return current;
+    }
+
+    public int max() {
+        return max;
+    }
+    public int armor() {
+        return armor;
+    }
+
+    public int invulnerabilityFrames() {
+        return invulnerabilityFrames;
+    }
+
+    public int invulnerabilityRemaining() {
+        return invulnerabilityRemaining;
+    }
+
+
+    public boolean isDepleted() {
+        return current <= 0;
+    }
+
+
+    /**
+     * apply damage after armor reduction. Returns true if health was reduced.
+     */
+    public int damage(int amount, Entity owner) {
+        if (isInvulnerable() || amount <= 0 || isDepleted()) {
+            return 0;
+        }
+        int applied = Math.max(0, amount - armor);
+        if (applied <= 0) {
+            invulnerabilityRemaining = invulnerabilityFrames;
+            return 0;
+        }
+        applied = Math.min(applied, current);
+        current = Math.max(0, current - applied);
+        invulnerabilityRemaining = invulnerabilityFrames;
+        if (current == 0) {
+            fireDeath(owner);
+        }
+        return applied;
+    }
+
+    public boolean isInvulnerable() {
+        return invulnerabilityRemaining > 0;
+    }
+
+
+    public void heal(int amount) {
+        if (amount <= 0) {
+            return;
+        }
+        current = Math.min(max, current + amount);
+    }
+
+    public void tickInvulnerability() {
+        if (invulnerabilityRemaining > 0) {
+            invulnerabilityRemaining -= 1;
+        }
+    }
+
+    public void setInvulnerabilityRemaining(int frames) {
+        invulnerabilityRemaining = Math.max(0, Math.min(invulnerabilityFrames, frames));
+    }
+
+
+    public void resetInvulnerability() {
+        invulnerabilityRemaining = 0;
+    }
+
+    public void restoreFull() {
+        current = max;
+        resetInvulnerability();
+    }
+
+    public void addDeathCallback(Consumer<Entity> callback) {
+        if (callback != null) {
+            deathCallbacks.add(callback);
+        }
+    }
+
+    private void fireDeath(Entity owner) {
+        for (Consumer<Entity> callback : deathCallbacks) {
+            callback.accept(owner);
+        }
+    }
+}

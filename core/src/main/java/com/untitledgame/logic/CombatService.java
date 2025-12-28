@@ -1,0 +1,73 @@
+package com.untitledgame.logic;
+
+import java.util.ArrayDeque;
+import java.util.HashSet;
+import java.util.Queue;
+import java.util.Set;
+
+/**
+ * central controller for combat - entities enqueue damage and the
+ * service resolves any armor, invulnerability frames, and death callbacks each tick.
+ */
+public class CombatService {
+    public record DamageEvent(Entity target, Entity source, int amount) { }
+
+    private final Queue<DamageEvent> damageEvents = new ArrayDeque<>();
+    private final Set<Entity> trackedEntities = new HashSet<>();
+    public interface DamageListener {
+        void onDamageApplied(Entity target, Entity source, int attemptedAmount, int appliedAmount);
+    }
+
+    private DamageListener damageListener;
+    public void register(Entity entity) {
+        if (entity != null) {
+            trackedEntities.add(entity);
+        }
+    }
+
+    public void unregister(Entity entity) {
+        trackedEntities.remove(entity);
+    }
+
+    public void setDamageListener(DamageListener listener) {
+        this.damageListener = listener;
+    }
+
+    public void queueDamage(Entity target, Entity source, int amount) {
+        if (target == null || target.health() == null) {
+            return;
+        }
+        damageEvents.add(new DamageEvent(target, source, Math.max(0, amount)));
+    }
+
+    /**
+     * resolve invulnerability timers and apply queued damage for frame
+     */
+    public void tick() {
+        for (Entity entity : trackedEntities) {
+            if (entity.health() != null) {
+                entity.health().tickInvulnerability();
+            }
+        }
+
+        int eventsToProcess = damageEvents.size();
+        for (int i = 0; i < eventsToProcess; i += 1) {
+            DamageEvent event = damageEvents.poll();
+            if (event == null) {
+                continue;
+            }
+            applyDamage(event);
+        }
+    }
+
+    private void applyDamage(DamageEvent event) {
+        HealthComponent health = event.target().health();
+        if (health == null) {
+            return;
+        }
+        int applied = health.damage(event.amount(), event.target());
+        if (damageListener != null) {
+            damageListener.onDamageApplied(event.target(), event.source(), event.amount(), applied);
+        }
+    }
+}

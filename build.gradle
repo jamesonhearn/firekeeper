@@ -1,0 +1,38 @@
+allprojects {
+    apply plugin: 'eclipse'
+    apply plugin: 'idea'
+
+    version = '1.0.0'
+    ext {
+        appName = 'UntitledGame'
+        gdxVersion = '1.12.1'
+        robolvmVersion = '2.3.20'
+        box2DLightsVersion = '1.5'
+        ashleyVersion = '1.7.4'
+        aiVersion = '1.8.2'
+    }
+
+    repositories {
+        mavenCentral()
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
+        maven { url 'https://oss.sonatype.org/content/repositories/releases/' }
+    }
+}
+
+project(':core') {
+    apply plugin: 'java-library'
+
+    dependencies {
+        api "com.badlogicgames.gdx:gdx:$gdxVersion"
+    }
+}
+
+project(':desktop') {
+    apply plugin: 'java-library'
+
+    dependencies {
+        implementation project(':core')
+        api "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
+        api "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
+    }
+}

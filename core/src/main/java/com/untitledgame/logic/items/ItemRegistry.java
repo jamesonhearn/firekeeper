@@ -1,0 +1,62 @@
+package com.untitledgame.logic.items;
+
+public final class ItemRegistry {
+    public static final Item SMALL_POTION = new Item(
+            "small_potion",
+            "Small Potion",
+            ItemRarity.COMMON,
+            5,
+            "Restores a small amount of health"
+    );
+
+    public static final Item TORCH = new Item(
+            "torch",
+            "Torch",
+            ItemRarity.UNCOMMON,
+            10,
+            "Sheds light when equipped"
+    );
+
+    public static final Item GEMSTONE = new Item(
+            "gemstone",
+            "Gemstone",
+            ItemRarity.RARE,
+            20,
+            "Valuable crafting catalyst"
+    );
+
+    public static final Item LIGHT_SHARD = new Item(
+            "light_shard",
+            "Light Shard",
+            ItemRarity.UNCOMMON,
+            5,
+            "Temporarily brightens your surroundings when picked up"
+    );
+    public static final Item KEY = new Item(
+            "key",
+            "Iron Key",
+            ItemRarity.LEGENDARY,
+            5,
+            "But where does it go?"
+    );
+
+    /**
+     * Lookup helper for reconstructing items by their persistent id.
+     */
+    public static Item byId(String id) {
+        if (id == null) {
+            return null;
+        }
+        return switch (id) {
+            case "small_potion" -> SMALL_POTION;
+            case "torch" -> TORCH;
+            case "gemstone" -> GEMSTONE;
+            case "light_shard" -> LIGHT_SHARD;
+            case "key" -> KEY;
+            default -> null;
+        };
+    }
+
+    private ItemRegistry() {
+    }
+}

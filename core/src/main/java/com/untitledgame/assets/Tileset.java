@@ -1,14 +1,10 @@
 package com.untitledgame.assets;
 
-import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.untitledgame.logic.Direction;
-import com.untitledgame.logic.TileType;
 import com.untitledgame.TETile;
-import org.w3c.dom.Text;
 
-import java.awt.Color;
 import java.util.*;
 
 public final class Tileset {
@@ -71,20 +67,16 @@ public final class Tileset {
         }
         textureAtlas = atlas;
         Objects.requireNonNull(atlas, "atlas must be provided to initialize tiles");
-        FLOOR = tile(atlas, "tiles/skull_floor", ' ', Color.WHITE, Color.BLACK, "floor", 0);
-        WALL_TOP = tile(atlas, "tiles/top_skull", '#', Color.GRAY, Color.BLACK, "wall top", 2);
-        WALL_SIDE = tile(atlas, "tiles/side_skull", '#', Color.GRAY, Color.BLACK, "wall side", 3);
-
-        //FLOOR = tile(atlas, "tiles/cave_floor_6", ' ', Color.WHITE, Color.BLACK, "floor", 0);
-        ELEVATOR = tile(atlas, "tiles/elevator", 'E', Color.YELLOW, Color.BLACK, "elevator", 1);
-       // WALL_TOP = tile(atlas, "tiles/cave_wall_top", '#', Color.GRAY, Color.BLACK, "wall top", 2);
-       // WALL_SIDE = tile(atlas, "tiles/cave_wall_base", '#', Color.GRAY, Color.BLACK, "wall side", 3);
-        LEFT_WALL = tile(atlas, "tiles/cave_wall_left", '#', Color.GRAY, Color.BLACK, "left wall", 4);
-        RIGHT_WALL = tile(atlas, "tiles/cave_wall_right", '#', Color.GRAY, Color.BLACK, "right wall", 5);
-        FRONT_WALL_TOP = tile(atlas, "tiles/cave_wall_top", '#', Color.GRAY, Color.BLACK, "front wall top", 6);
-        BACK_WALL = tile(atlas, "tiles/cave_wall_base", '#', Color.GRAY, Color.BLACK, "back wall", 7);
-        LOOT_BAG = tile(atlas, "tiles/test", '$', Color.YELLOW, Color.BLACK, "loot", 8);
-        NPC_CORPSE = tile(atlas, "tiles/cave_floor_1", 'X', Color.RED, Color.BLACK, "corpse", 9);
+        FLOOR = tile(atlas, "tiles/cave_floor_6", "floor", 0);
+        ELEVATOR = tile(atlas, "tiles/elevator", "elevator", 1);
+        WALL_TOP = tile(atlas, "tiles/top_skull", "wall top", 2);
+        WALL_SIDE = tile(atlas, "tiles/cave_wall_base", "wall side", 3);
+        LEFT_WALL = tile(atlas, "tiles/cave_wall_left", "left wall", 4);
+        RIGHT_WALL = tile(atlas, "tiles/cave_wall_right", "right wall", 5);
+        FRONT_WALL_TOP = tile(atlas, "tiles/cave_wall_top", "front wall top", 6);
+        BACK_WALL = tile(atlas, "tiles/cave_wall_base", "back wall", 7);
+        LOOT_BAG = tile(atlas, "tiles/test", "loot", 8);
+        NPC_CORPSE = tile(atlas, "tiles/cave_floor_1", "corpse", 9);
 
 
         // Load avatar animations from 8-directional sprite sheets
@@ -137,40 +129,16 @@ public final class Tileset {
                 break;
             }
 
-            frames.add(new TETile(
-                    'N',
-                    Color.RED,
-                    Color.BLACK,
-                    "npc",
-                    key,
-                    200 + variant * 100 + frame
-            ));
+            TextureRegion region = textureAtlas.findRegion(key);
+            frames.add(TETile.fromRegion("npc", region, key, 200 + variant * 100 + frame));
         }
 
         return frames.toArray(new TETile[0]);
     }
 
-    private static TETile tile(TextureAtlas atlas, String key, char character, Color textColor,
-                               Color backgroundColor, String description, int id) {
+    private static TETile tile(TextureAtlas atlas, String key, String description, int id) {
         TextureRegion region = atlas.findRegion(key);
-        return TETile.fromRegion(character, textColor, backgroundColor, description, region, key, id);
-    }
-
-
-    public static Map<TileType, TextureRegion> buildTileRegions(GameAssets assets) {
-        EnumMap<TileType, TextureRegion> map = new EnumMap<>(TileType.class);
-        map.put(TileType.FLOOR, assets.region("tiles/cave_floor_6"));
-        map.put(TileType.ELEVATOR, assets.region("tiles/elevator"));
-        map.put(TileType.WALL_SIDE, assets.region("tiles/cave_wall_base"));
-        map.put(TileType.WALL_TOP, assets.region("tiles/cave_wall_top"));
-        map.put(TileType.LEFT_WALL, assets.region("tiles/cave_wall_left"));
-        map.put(TileType.BACK_WALL, assets.region("tiles/cave_wall_base"));
-        return map;
-    }
-
-
-    public static String uiKey(UiAsset asset) {
-        return asset.key();
+        return TETile.fromRegion(description, region, key, id);
     }
 
     /**

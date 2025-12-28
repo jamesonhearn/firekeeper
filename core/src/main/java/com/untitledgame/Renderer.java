@@ -27,8 +27,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Renderer responsible for world and HUD drawing, adapted from the legacy TERenderer.
- * Atlas textures are provided by the shared AssetManager to avoid filesystem scans.
+ * Renderer responsible for world and HUD drawing using libGDX.
+ * Handles tile rendering, lighting effects, and UI overlay.
  */
 public class Renderer implements AutoCloseable {
     static final int TILE_SIZE = 24;
@@ -115,8 +115,6 @@ public class Renderer implements AutoCloseable {
     private int avatarX = -1;
     private int avatarY = -1;
     private double lightRadius = 50;
-    public static final TETile DARK =
-            new TETile(' ', new java.awt.Color(0,  0, 0), new java.awt.Color(0, 0, 0), "darkness", 2);
 
     private ShaderProgram lightShader;
     private Texture lightMaskTexture;

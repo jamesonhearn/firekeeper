@@ -1,105 +1,34 @@
 package com.untitledgame;
 
-import java.awt.Color;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import java.util.Random;
 
 import com.untitledgame.logic.TileType;
-import com.untitledgame.utils.RandomUtils;
 
 /**
- * The TETile object is used to represent a single tile in your world. A 2D array of tiles make up a
- * board, and can be drawn to the screen using the TERenderer class.
- *
- * All TETile objects must have a character, textcolor, and background color to be used to represent
- * the tile when drawn to the screen. You can also optionally provide an atlas key to an image
- * (16x16) to be drawn in place of the unicode representation. If the atlas key
- * provided cannot be found, draw will fallback to using the provided character and color
- * representation, so you are free to use image tiles on your own computer.
- *
- * The provided TETile is immutable, i.e. none of its instance variables can change. You are welcome
- * to make your TETile class mutable, if you prefer.
+ * TETile represents a single tile in the game world using libGDX's texture system.
+ * Tiles are drawn using TextureRegions from a TextureAtlas for efficient rendering.
  *
  */
 
 public class TETile {
-    private final char character; // Do not rename character or the autograder will break.
-    private final Color textColor;
-    private final Color backgroundColor;
     private final String description;
     private final String atlasKey;
     private final int id;
     private final TextureRegion cachedRegion;
-    private static final int COLOR_RANGE = 255;
     private static SpriteBatch spriteBatch;
     private static TextureAtlas textureAtlas;
     private static float defaultTileSize = 1.0f;
 
     /**
-     * Full constructor for TETile objects.
-     * @param character The character displayed on the screen.
-     * @param textColor The color of the character itself.
-     * @param backgroundColor The color drawn behind the character.
+     * Constructor for TETile with pre-resolved texture region.
      * @param description The description of the tile, shown in the GUI on hovering over the tile.
-     * @param atlasKey Atlas key to image to be used for this tile. Must be correct size (16x16)
+     * @param region Pre-loaded texture region from atlas
+     * @param atlasKey Atlas key for the texture
+     * @param id Unique identifier for this tile type
      */
-    public TETile(char character, Color textColor, Color backgroundColor, String description,
-                  String atlasKey, int id) {
-        this.character = character;
-        this.textColor = textColor;
-        this.backgroundColor = backgroundColor;
-        this.description = description;
-        this.atlasKey = atlasKey;
-        this.id = id;
-        this.cachedRegion = null;
-    }
-
-    /**
-     * Constructor without atlas key. In this case, atlasKey will be null, so when drawing, we
-     * will not even try to draw an image, and will instead use the provided character and colors.
-     * @param character The character displayed on the screen.
-     * @param textColor The color of the character itself.
-     * @param backgroundColor The color drawn behind the character.
-     * @param description The description of the tile, shown in the GUI on hovering over the tile.
-     */
-    public TETile(char character, Color textColor, Color backgroundColor, String description, int id) {
-        this.character = character;
-        this.textColor = textColor;
-        this.backgroundColor = backgroundColor;
-        this.description = description;
-        this.atlasKey = null;
-        this.id = id;
-        this.cachedRegion = null;
-    }
-
-    /**
-     * Creates a copy of TETile t, except with given textColor.
-     * @param t tile to copy
-     * @param textColor foreground color for tile copy
-     */
-    public TETile(TETile t, Color textColor) {
-        this(t.character, textColor, t.backgroundColor, t.description, t.cachedRegion, t.atlasKey, t.id);
-    }
-
-    /**
-     * Creates a copy of TETile t, except with given character.
-     * @param t tile to copy
-     * @param c character for tile copy
-     */
-    public TETile(TETile t, char c) {
-        this(c, t.textColor, t.backgroundColor, t.description, t.cachedRegion, t.atlasKey, t.id);
-    }
-
-    /**
-     * Constructor that accepts a pre-resolved texture region to avoid atlas lookups during draw.
-     */
-    public TETile(char character, Color textColor, Color backgroundColor, String description,
-                  TextureRegion region, String atlasKey, int id) {
-        this.character = character;
-        this.textColor = textColor;
-        this.backgroundColor = backgroundColor;
+    public TETile(String description, TextureRegion region, String atlasKey, int id) {
         this.description = description;
         this.cachedRegion = region;
         this.atlasKey = atlasKey;
@@ -107,34 +36,35 @@ public class TETile {
     }
 
     /**
-     * Factory for tiles that are always drawn from an already loaded region.
-     */
-    public static TETile fromRegion(char character, Color textColor, Color backgroundColor,
-                                    String description, TextureRegion region, String atlasKey, int id) {
-        return new TETile(character, textColor, backgroundColor, description, region, atlasKey, id);
+     * Factory method to create a tile from a texture atlas.
+     * @param description The description of the tile
+     * @param region Pre-loaded texture region from atlas
+     * @param atlasKey Atlas key for the texture
+     * @param id Unique identifier for this tile type
+     * @return A new TETile instance
+     * */
+    public static TETile fromRegion(String description, TextureRegion region, String atlasKey, int id) {
+        return new TETile(description, region, atlasKey, id);
     }
 
 
     /**
-     * Draws the tile to the screen at location x, y. If a valid atlas key is provided,
-     * we draw the image located at that atlas key to the screen. Otherwise, we fall
-     * back to the character and color representation for the tile.
+     * Draws the tile to the screen using libGDX's SpriteBatch.
+     * @param x x coordinate in world units
+     * @param y y coordinate in world units
      *
-     * Note that the image provided must be of the right size (16x16). It will not be
-     * automatically resized or truncated.
-     * @param x x coordinate
-     * @param y y coordinate
-     */
-    public static void configureRendering(SpriteBatch batch, TextureAtlas atlas, float tileSize) {
-        spriteBatch = batch;
-        textureAtlas = atlas;
-        defaultTileSize = tileSize;
-    }
-
+     **/
     public void draw(double x, double y) {
         drawSized(x, y, defaultTileSize);
     }
 
+
+    /**
+     * Draws the tile scaled to a specific size.
+     * @param x x coordinate in world units
+     * @param y y coordinate in world units
+     * @param scale scale multiplier for the tile size
+     */
     public void drawScaled(double x, double y, double scale) {
         drawSized(x, y, scale);
     }
@@ -166,11 +96,10 @@ public class TETile {
         return atlas.findRegion(atlasKey);
     }
 
-    /** Character representation of the tile. Used for drawing in text mode.
-     * @return character representation
-     */
-    public char character() {
-        return character;
+    public static void configureRendering(SpriteBatch batch, TextureAtlas atlas, float tileSize) {
+        spriteBatch = batch;
+        textureAtlas = atlas;
+        defaultTileSize = tileSize;
     }
 
     /**
@@ -198,61 +127,6 @@ public class TETile {
         return id;
     }
 
-    /**
-     * Creates a copy of the given tile with a slightly different text color. The new
-     * color will have a red value that is within dr of the current red value,
-     * and likewise with dg and db.
-     * @param t the tile to copy
-     * @param dr the maximum difference in red value
-     * @param dg the maximum difference in green value
-     * @param db the maximum difference in blue value
-     * @param r the random number generator to use
-     */
-    public static TETile colorVariant(TETile t, int dr, int dg, int db, Random r) {
-        Color oldColor = t.textColor;
-        int newRed = newColorValue(oldColor.getRed(), dr, r);
-        int newGreen = newColorValue(oldColor.getGreen(), dg, r);
-        int newBlue = newColorValue(oldColor.getBlue(), db, r);
-
-        Color c = new Color(newRed, newGreen, newBlue);
-
-        return new TETile(t, c);
-    }
-
-    private static int newColorValue(int v, int dv, Random r) {
-        int rawNewValue = v + RandomUtils.uniform(r, -dv, dv + 1);
-
-        // make sure value doesn't fall outside of the range 0 to 255.
-        int newValue = Math.min(COLOR_RANGE, Math.max(0, rawNewValue));
-        return newValue;
-    }
-
-    /**
-     * Converts the given 2D array to a String. Handy for debugging.
-     * Note that since y = 0 is actually the bottom of your world when
-     * drawn using the tile rendering engine, this print method has to
-     * print in what might seem like backwards order (so that the 0th
-     * row gets printed last).
-     * @param world the 2D world to print
-     * @return string representation of the world
-     */
-    public static String toString(TETile[][] world) {
-        int width = world.length;
-        int height = world[0].length;
-        StringBuilder sb = new StringBuilder();
-
-        for (int y = height - 1; y >= 0; y -= 1) {
-            for (int x = 0; x < width; x += 1) {
-                if (world[x][y] == null) {
-                    throw new IllegalArgumentException("Tile at position x=" + x + ", y=" + y
-                            + " is null.");
-                }
-                sb.append(world[x][y].character());
-            }
-            sb.append('\n');
-        }
-        return sb.toString();
-    }
 
     /**
      * Makes a copy of the given 2D tile array, converting TileType to TETile.

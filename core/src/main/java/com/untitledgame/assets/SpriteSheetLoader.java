@@ -13,8 +13,6 @@ import java.util.List;
 public class SpriteSheetLoader {
 
 
-    private Object paths;
-
     public static void loadSpriteSheets(AssetManager assetManager, TextureAtlas atlas, List<SpriteSheetConfig> configs) {
         for (SpriteSheetConfig config : configs) {
             loadSpriteSheet(assetManager, atlas, config);

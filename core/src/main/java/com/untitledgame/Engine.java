@@ -18,9 +18,8 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 
 import com.badlogic.gdx.math.Vector2;
-import com.untitledgame.assets.Tileset;
+import com.untitledgame.assets.*;
 import com.untitledgame.logic.*;
-import com.untitledgame.assets.UiAsset;
 
 import java.io.*;
 import java.util.ArrayDeque;
@@ -31,9 +30,6 @@ import java.util.Locale;
 import com.untitledgame.utils.FileUtils;
 import java.util.Random;
 
-import com.untitledgame.assets.SpriteSheetConfig;
-import com.untitledgame.assets.SpriteSheetLoader;
-import com.untitledgame.assets.AnimationSetConfig;
 import com.untitledgame.logic.items.DroppedItem;
 import com.untitledgame.logic.items.Inventory;
 import com.untitledgame.logic.items.Item;
@@ -183,11 +179,12 @@ public class Engine implements Screen {
     };
 
 
-    private static final double AVATAR_WALK_SPEED = 10.0;
+    private static final double AVATAR_WALK_SPEED = 5.0;
     private static final double AVATAR_RUN_SPEED = 16.0;
     private static final double MELEE_HALF_WIDTH = 0.45;
     private static final double MELEE_REACH = 0.70;
     private static final double COLLISION_EPSILON = 1e-4;
+    private static final double VELOCITY_EPSILON = 1e-6;  // Threshold for detecting avatar movement
 
 
     //Animation variables
@@ -209,6 +206,13 @@ public class Engine implements Screen {
     private Direction attackFacing = Direction.DOWN;
     private final ArrayDeque<Character> typedKeys = new ArrayDeque<>();
     private final InputState inputState = new InputState();
+
+
+    // Targeting system
+    private boolean targetingEnabled = false;
+    private Npc currentTarget = null;
+    private boolean tKeyDown = false;
+    private boolean prevTKeyDown = false;
 
     private enum GameState { PLAYING, DYING, DEAD, ENDING, ENDED }
     private GameState gameState = GameState.PLAYING;
@@ -304,6 +308,11 @@ public class Engine implements Screen {
         droppedItems = new ArrayList<>();
         inventoryVisible = false;
         hudMessage = "";
+        // Reset targeting system
+        targetingEnabled = false;
+        currentTarget = null;
+        tKeyDown = false;
+        prevTKeyDown = false;
         resetLighting();
 
     }
@@ -813,6 +822,69 @@ public class Engine implements Screen {
     }
 
 
+    private void updateTargetingToggle() {
+        boolean t = tKeyDown;
+
+        if (t && !prevTKeyDown) {
+            targetingEnabled = !targetingEnabled;
+            if (targetingEnabled) {
+                setHudMessage("Targeting enabled", 2000);
+                updateCurrentTarget();
+            } else {
+                setHudMessage("Targeting disabled", 2000);
+                currentTarget = null;
+            }
+        }
+
+        prevTKeyDown = t;
+    }
+
+    private void updateCurrentTarget() {
+        if (!targetingEnabled || npcManager == null || avatar == null) {
+            currentTarget = null;
+            return;
+        }
+
+        // Find nearest living enemy
+        Npc nearest = null;
+        double nearestDist = Double.MAX_VALUE;
+
+        for (Npc npc : npcManager.npcs()) {
+            if (npc.health() != null && npc.health().current() > 0) {
+                double dx = npc.posX() - avatar.posX();
+                double dy = npc.posY() - avatar.posY();
+                double dist = Math.hypot(dx, dy);
+
+                if (dist < nearestDist) {
+                    nearestDist = dist;
+                    nearest = npc;
+                }
+            }
+        }
+
+        currentTarget = nearest;
+    }
+
+    private Direction getTargetFacing() {
+        if (!targetingEnabled || currentTarget == null || avatar == null) {
+            return null;
+        }
+
+        // Verify target is still alive
+        if (currentTarget.health() == null || currentTarget.health().current() <= 0) {
+            updateCurrentTarget();
+            if (currentTarget == null) {
+                return null;
+            }
+        }
+
+        // Calculate direction to target
+        double dx = currentTarget.posX() - avatar.posX();
+        double dy = currentTarget.posY() - avatar.posY();
+
+        return Direction.fromVelocity(dx, dy);
+    }
+
     // applyCommands for loading saves
     private void applyCommands(String input, boolean recordHistory, boolean allowQuit) {
         boolean awaitingQuit = false;
@@ -913,7 +985,7 @@ public class Engine implements Screen {
         if (attack && !prevAttackDown) {
             // Calculate attack facing from current velocity or last facing
             Direction facing;
-            if (Math.abs(avatar.velocityX()) > 1e-6 || Math.abs(avatar.velocityY()) > 1e-6) {
+            if (Math.abs(avatar.velocityX()) > VELOCITY_EPSILON || Math.abs(avatar.velocityY()) > VELOCITY_EPSILON) {
                 facing = Direction.fromVelocity(avatar.velocityX(), avatar.velocityY());
             } else {
                 facing = avatar.facing();
@@ -1391,7 +1463,7 @@ public class Engine implements Screen {
         if (!inventoryHasItem(ItemRegistry.KEY)) {
             return;
         }
-        if (world[avatar.x()][avatar.y()] == com.untitledgame.logic.TileType.ELEVATOR) {
+        if (world[avatar.x()][avatar.y()] == TileType.ELEVATOR) {
             beginEndSequence();
         }
     }
@@ -1435,17 +1507,12 @@ public class Engine implements Screen {
         for (Npc npc : npcs) {
             // Set velocity from facing direction (which comes from AI behavior)
             // NPCs use cardinal directions from pathfinding but animate in 8 directions
-            if (npc.facing() != null) {
+            boolean aiSetVelocity = Math.abs(npc.velocityX()) > 1e-6 || Math.abs(npc.velocityY()) > 1e-6;
+
+            if (!aiSetVelocity && npc.facing() != null) {
                 Vector2 facingVec = facingVector(npc.facing());
                 double speed = npcManager.moveSpeed();
                 npc.setVelocity(facingVec.x * speed, facingVec.y * speed);
-                
-                // Calculate 8-directional facing for animation from actual velocity
-                // This allows diagonal animation even though AI uses cardinal directions
-                if (Math.abs(npc.velocityX()) > 1e-6 || Math.abs(npc.velocityY()) > 1e-6) {
-                    Direction animFacing = Direction.fromVelocity(npc.velocityX(), npc.velocityY());
-                    npc.setFacing(animFacing);
-                }
             }
             
             npc.updateAnimation((float) deltaSeconds);
@@ -1733,6 +1800,8 @@ public class Engine implements Screen {
                 attackDown = true;
             } else if (keycode == Input.Keys.V) {
                 tabDown = true;
+            } else if (keycode == Input.Keys.T) {
+                tKeyDown = true;
             } else if (keycode == Input.Keys.SHIFT_LEFT || keycode == Input.Keys.SHIFT_RIGHT) {
                 shiftDown = true;
             }
@@ -1753,6 +1822,8 @@ public class Engine implements Screen {
                 attackDown = false;
             } else if (keycode == Input.Keys.V) {
                 tabDown = false;
+            } else if (keycode == Input.Keys.T) {
+                tKeyDown = false;
             } else if (keycode == Input.Keys.SHIFT_LEFT || keycode == Input.Keys.SHIFT_RIGHT) {
                 shiftDown = false;
             }
@@ -1807,6 +1878,18 @@ public class Engine implements Screen {
     }
 
 
+    private Direction getMovementBasedFacing() {
+        if (avatar != null && (Math.abs(avatar.velocityX()) > VELOCITY_EPSILON || Math.abs(avatar.velocityY()) > VELOCITY_EPSILON)) {
+            // Moving - use velocity to determine 8-directional facing
+            Direction facing = Direction.fromVelocity(avatar.velocityX(), avatar.velocityY());
+            avatar.setFacing(facing);
+            return facing;
+        } else {
+            // Not moving - use last stored facing
+            return avatar != null ? avatar.facing() : Direction.DOWN;
+        }
+    }
+
     private void tickAvatarAnimation(double deltaSeconds, boolean movedThisTick) {
         if (avatarAnimation == null) {
             return;
@@ -1821,14 +1904,22 @@ public class Engine implements Screen {
         Direction facing;
         if (attackInProgress) {
             facing = attackFacing;
-        } else if (avatar != null && (Math.abs(avatar.velocityX()) > 1e-6 || Math.abs(avatar.velocityY()) > 1e-6)) {
-            // Moving - use velocity to determine 8-directional facing
-            facing = Direction.fromVelocity(avatar.velocityX(), avatar.velocityY());
-            // Store facing for when movement stops
-            avatar.setFacing(facing);
+        } else if (targetingEnabled) {
+            // When targeting is enabled, face the target
+            Direction targetFacing = getTargetFacing();
+            if (targetFacing != null) {
+                facing = targetFacing;
+                // Store this as the avatar's facing direction
+                if (avatar != null) {
+                    avatar.setFacing(facing);
+                }
+            } else {
+                // No valid target, fall back to movement-based facing
+                facing = getMovementBasedFacing();
+            }
         } else {
-            // Not moving - use last stored facing
-            facing = avatar != null ? avatar.facing() : Direction.DOWN;
+            // Normal movement-based facing
+            facing = getMovementBasedFacing();
         }
         
         AvatarAction desiredAction = (gameState == GameState.PLAYING)
@@ -2192,6 +2283,10 @@ public class Engine implements Screen {
             }
         }
         updateInventoryToggle();
+        updateTargetingToggle();
+        if (targetingEnabled) {
+            updateCurrentTarget();
+        }
         if (npcManager != null && avatar != null) {
             npcManager.tick(world, avatar);
         }

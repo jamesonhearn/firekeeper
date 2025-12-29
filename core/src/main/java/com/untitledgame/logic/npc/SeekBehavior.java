@@ -18,6 +18,7 @@ public class SeekBehavior implements AiBehavior {
     public void onEnterState(Npc owner) {
         desired = null;
     }
+    private static final int COMBAT_DISTANCE_SQUARED = 2;
 
     @Override
     public void onTick(Npc owner, WorldView view) {
@@ -26,6 +27,14 @@ public class SeekBehavior implements AiBehavior {
         var avatarPos = view.avatarPosition();
         int ax = avatarPos.x();
         int ay = avatarPos.y();
+
+        int currentDist = heuristic(owner.x(), owner.y(), ax, ay);
+
+        // Stop seeking if already within combat distance
+        // This gives enemies a comfortable attack range
+        if (currentDist <= COMBAT_DISTANCE_SQUARED) {
+            return;
+        }
 
         // Copy all directions
         List<Direction> directions = new ArrayList<>(List.of(Direction.values()));
@@ -41,6 +50,11 @@ public class SeekBehavior implements AiBehavior {
         for (Direction dir : directions) {
             int nx = owner.x() + dir.getDx();
             int ny = owner.y() + dir.getDy();
+
+            int newDist = heuristic(nx, ny, ax, ay);
+            if (newDist < COMBAT_DISTANCE_SQUARED) {
+                continue;
+            }
 
             if (view.isWalkable(nx, ny) && !view.isOccupied(nx, ny)) {
                 desired = dir;

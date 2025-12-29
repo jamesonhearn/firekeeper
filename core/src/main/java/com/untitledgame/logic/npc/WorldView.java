@@ -3,7 +3,7 @@ package com.untitledgame.logic.npc;
 import com.untitledgame.logic.Avatar;
 import com.untitledgame.logic.CombatService;
 import com.untitledgame.logic.Entity;
-import com.untitledgame.logic.TileType;
+import com.untitledgame.assets.TileType;
 
 import java.util.Set;
 

@@ -1,5 +1,7 @@
 package com.untitledgame.logic;
 
+import com.untitledgame.assets.TileType;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;

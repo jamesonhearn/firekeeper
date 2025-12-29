@@ -14,8 +14,9 @@ import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import com.untitledgame.assets.TETile;
 import com.untitledgame.assets.Tileset;
-import com.untitledgame.logic.TileType;
+import com.untitledgame.assets.TileType;
 import com.untitledgame.logic.items.DroppedItem;
 import com.untitledgame.logic.npc.Corpse;
 import com.untitledgame.logic.npc.Npc;
@@ -227,7 +228,7 @@ public class Renderer implements AutoCloseable {
         uniformsDirty = true;
     }
 
-    public RenderContext buildContext(com.untitledgame.logic.TileType[][] world) {
+    public RenderContext buildContext(TileType[][] world) {
         int startX = Math.max(0, viewOriginX);
         int endX = Math.min(world.length, viewOriginX + viewWidth);
 
@@ -330,7 +331,7 @@ public class Renderer implements AutoCloseable {
         initialize(w, h, 0, 0, atlas);
     }
 
-    public void applyFullLightingPass(com.untitledgame.logic.TileType[][] world, RenderContext context) {
+    public void applyFullLightingPass(TileType[][] world, RenderContext context) {
         if (batch == null || activeLights.isEmpty() || world == null || context == null) {
             return;
         }
@@ -354,7 +355,7 @@ public class Renderer implements AutoCloseable {
     }
 
 
-    public void drawWorld(com.untitledgame.logic.TileType[][] world,
+    public void drawWorld(TileType[][] world,
                           List<Corpse> corpses,
                           List<DroppedItem> drops,
                           NpcManager npcManager,
@@ -466,7 +467,7 @@ public class Renderer implements AutoCloseable {
         occlusionTexture.setWrap(Texture.TextureWrap.ClampToEdge, Texture.TextureWrap.ClampToEdge);
         occlusionDirty = true;
     }
-    private boolean shouldRefreshOcclusionMap(com.untitledgame.logic.TileType[][] world, RenderContext context) {
+    private boolean shouldRefreshOcclusionMap(TileType[][] world, RenderContext context) {
         if (world == null || context == null || occlusionTexture == null || occlusionPixmap == null) {
             return false;
         }
@@ -478,7 +479,7 @@ public class Renderer implements AutoCloseable {
     }
 
 
-    private void refreshOcclusionMap(com.untitledgame.logic.TileType[][] world, RenderContext context) {
+    private void refreshOcclusionMap(TileType[][] world, RenderContext context) {
         occlusionPixmap.setColor(1f, 1f, 1f, 0f);
         occlusionPixmap.fill();
         if (world == null || occlusionTexture == null || occlusionPixmap == null || context == null) {
@@ -517,7 +518,7 @@ public class Renderer implements AutoCloseable {
     }
 
 
-    private float[][] computeVisibilityGrid(com.untitledgame.logic.TileType[][] world, LightSource light) {
+    private float[][] computeVisibilityGrid(TileType[][] world, LightSource light) {
         float[][] visibility = new float[viewWidth][viewHeight];
         if (world == null || light == null || light.radius() <= 0.0f) {
             return visibility;
@@ -540,7 +541,7 @@ public class Renderer implements AutoCloseable {
     }
 
     private void shadowcastOctant(float[][] visibility,
-                                  com.untitledgame.logic.TileType[][] world,
+                                  TileType[][] world,
                                   LightSource light,
                                   int radius,
                                   int xx,
@@ -656,7 +657,7 @@ public class Renderer implements AutoCloseable {
         return t;
     }
 
-    private boolean isBlocking(com.untitledgame.logic.TileType[][] world, int worldX, int worldY) {
+    private boolean isBlocking(TileType[][] world, int worldX, int worldY) {
         if (world == null) {
             return true;
         }
@@ -666,7 +667,7 @@ public class Renderer implements AutoCloseable {
         return isBlockingTile(world[worldX][worldY]);
     }
 
-    private boolean isBlockingTile(com.untitledgame.logic.TileType tile) {
+    private boolean isBlockingTile(TileType tile) {
         if (tile == null) {
             return true;
         }
@@ -674,7 +675,7 @@ public class Renderer implements AutoCloseable {
                 || tile == TileType.LEFT_WALL || tile == TileType.BACK_WALL;
     }
 
-    private int computeWorldSignature(com.untitledgame.logic.TileType[][] world, LightBounds bounds) {
+    private int computeWorldSignature(TileType[][] world, LightBounds bounds) {
         if (world == null || bounds == null) {
             return 0;
         }
@@ -765,13 +766,13 @@ public class Renderer implements AutoCloseable {
         Gdx.gl.glActiveTexture(GL20.GL_TEXTURE0);
     }
 
-    private void addTileDraws(com.untitledgame.logic.TileType[][] world,
+    private void addTileDraws(TileType[][] world,
                               RenderContext context,
                               List<RenderOp> ops,
                               int coverCutoff) {
         for (int x = context.startX; x < context.endX; x++) {
             for (int y = context.startY; y < context.endY; y++) {
-                com.untitledgame.logic.TileType tile = world[x][y];
+                TileType tile = world[x][y];
 
                 if (tile == null) {
                     throw new IllegalArgumentException("Tile at " + x + "," + y + " is null.");
@@ -879,7 +880,7 @@ public class Renderer implements AutoCloseable {
                         (float) scale)));
     }
 
-    private DrawLayer tileLayer(com.untitledgame.logic.TileType tile, int y, int coverCutoff) {
+    private DrawLayer tileLayer(TileType tile, int y, int coverCutoff) {
         if (isFloor(tile)) {
             return DrawLayer.BACKGROUND;
         }
@@ -903,7 +904,7 @@ public class Renderer implements AutoCloseable {
 
 
 
-    private TETile getTETile(com.untitledgame.logic.TileType type) {
+    private TETile getTETile(TileType type) {
         if (type == null) {
             return null;
         }
@@ -918,18 +919,18 @@ public class Renderer implements AutoCloseable {
         };
     }
 
-    private boolean isFloor(com.untitledgame.logic.TileType t) {
-        return t == com.untitledgame.logic.TileType.FLOOR || t == com.untitledgame.logic.TileType.ELEVATOR;
+    private boolean isFloor(TileType t) {
+        return t == TileType.FLOOR || t == TileType.ELEVATOR;
     }
 
-    private boolean isSideWall(com.untitledgame.logic.TileType t) {
-        return t == com.untitledgame.logic.TileType.LEFT_WALL
-                || t == com.untitledgame.logic.TileType.WALL_SIDE;
+    private boolean isSideWall(TileType t) {
+        return t == TileType.LEFT_WALL
+                || t == TileType.WALL_SIDE;
     }
 
-    private boolean isTopWall(com.untitledgame.logic.TileType t) {
-        return t == com.untitledgame.logic.TileType.WALL_TOP
-                || t == com.untitledgame.logic.TileType.BACK_WALL;
+    private boolean isTopWall(TileType t) {
+        return t == TileType.WALL_TOP
+                || t == TileType.BACK_WALL;
     }
 
     public void resetFont() { }

@@ -7,8 +7,7 @@ import com.untitledgame.logic.Avatar;
 import com.untitledgame.logic.CombatService;
 import com.untitledgame.logic.Entity;
 import com.untitledgame.logic.HealthComponent;
-import com.untitledgame.logic.TileType;
-import com.untitledgame.TETile;
+import com.untitledgame.assets.TileType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,9 +34,9 @@ public class NpcManager {
     /**lookup of NPCs by tile for hitbox collision */
     private final Map<Entity.Position, List<Npc>> npcByTile = new HashMap<>();
     private List<Integer> availableVariants = new ArrayList<>(List.of(0));
-    private static final double NPC_SPEED = 8.0;
+    private static final double NPC_SPEED = 5.0;
 
-    private static final int DEFAULT_NPC_COUNT = 300;
+    private static final int DEFAULT_NPC_COUNT = 10;
 
     public NpcManager(Random rng, CombatService combatService, TextureAtlas textureAtlas) {
         this.rng = rng;

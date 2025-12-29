@@ -1,7 +1,6 @@
 package com.untitledgame.logic.npc;
 
 
-import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.untitledgame.animation.AnimationController;
 import com.untitledgame.animation.AnimationType;
@@ -9,7 +8,7 @@ import com.untitledgame.logic.AiBehavior;
 import com.untitledgame.logic.Direction;
 import com.untitledgame.logic.Entity;
 import com.untitledgame.logic.HealthComponent;
-import com.untitledgame.TETile;
+import com.untitledgame.assets.TETile;
 
 import java.util.EnumMap;
 import java.util.Random;
@@ -21,6 +20,8 @@ import java.util.Random;
  */
 public class Npc extends Entity {
     public static final double HITBOX_HALF = 0.30;
+    private static final double MIN_ATTACK_DIST_SQ = 0.9 * 0.9;
+    private static final double MAX_ATTACK_DIST_SQ = 1.8 * 1.8;
     private final Random rng;
     private final long rngSeed;
     private final int variant;
@@ -155,18 +156,16 @@ public class Npc extends Entity {
     }
 
     private State selectState(WorldView view) {
-        int dx = Math.abs(view.avatarPosition().x() - x());
-        int dy = Math.abs(view.avatarPosition().y() - y());
-        int manhattan = dx + dy;
-        // Less than 2 - attack
-        if (manhattan <= 2) {
+        double dx = view.avatarPosition().x() - x();
+        double dy = view.avatarPosition().y() - y();
+        double distSq = dx * dx + dy * dy;
+
+        if (distSq <= MAX_ATTACK_DIST_SQ)
             return State.ATTACK;
-        }
-        // More than 15 - Idle
-        if (manhattan < SEEK_LIMIT) {
+
+        if (distSq < SEEK_LIMIT * SEEK_LIMIT)
             return State.SEEK;
-        }
-        // Less than 15 more than 2 - Seek
+
         return State.IDLE;
     }
 

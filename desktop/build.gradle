@@ -2,7 +2,7 @@ apply plugin: 'application'
 
 sourceCompatibility = 17
 
-def mainClassNameValue = 'com.untitledgame.desktop.DesktopLauncher'
+def mainClassNameValue = 'main.java.com.untitledgame.desktop.DesktopLauncher'
 mainClassName = mainClassNameValue
 
 jar {

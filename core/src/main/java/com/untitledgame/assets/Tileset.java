@@ -3,7 +3,6 @@ package com.untitledgame.assets;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.untitledgame.logic.Direction;
-import com.untitledgame.TETile;
 
 import java.util.*;
 
@@ -67,7 +66,7 @@ public final class Tileset {
         }
         textureAtlas = atlas;
         Objects.requireNonNull(atlas, "atlas must be provided to initialize tiles");
-        FLOOR = tile(atlas, "tiles/cave_floor_6", "floor", 0);
+        FLOOR = tile(atlas, "tiles/skull_floor", "floor", 0);
         ELEVATOR = tile(atlas, "tiles/elevator", "elevator", 1);
         WALL_TOP = tile(atlas, "tiles/top_skull", "wall top", 2);
         WALL_SIDE = tile(atlas, "tiles/cave_wall_base", "wall side", 3);

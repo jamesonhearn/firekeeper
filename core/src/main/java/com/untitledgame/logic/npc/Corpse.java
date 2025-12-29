@@ -1,6 +1,6 @@
 package com.untitledgame.logic.npc;
 
-import com.untitledgame.TETile;
+import com.untitledgame.assets.TETile;
 
 /**
  * Simple marker to keep track of NPC death remnants.

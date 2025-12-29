@@ -1,7 +1,6 @@
 package com.untitledgame.debug;
 
 import com.badlogic.gdx.ApplicationAdapter;
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.assets.AssetManager;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
@@ -9,7 +8,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.untitledgame.Renderer;
 import com.untitledgame.assets.Tileset;
-import com.untitledgame.logic.TileType;
+import com.untitledgame.assets.TileType;
 import com.untitledgame.logic.World;
 
 import java.util.Random;

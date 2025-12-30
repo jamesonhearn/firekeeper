@@ -180,7 +180,7 @@ public class Engine implements Screen {
 
 
     private static final double AVATAR_WALK_SPEED = 5.0;
-    private static final double AVATAR_RUN_SPEED = 16.0;
+    private static final double AVATAR_RUN_SPEED = 10.0;
     private static final double MELEE_HALF_WIDTH = 0.45;
     private static final double MELEE_REACH = 0.70;
     private static final double COLLISION_EPSILON = 1e-4;

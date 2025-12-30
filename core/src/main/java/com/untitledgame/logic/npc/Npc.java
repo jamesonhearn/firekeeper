@@ -20,11 +20,10 @@ import java.util.Random;
  */
 public class Npc extends Entity {
     public static final double HITBOX_HALF = 0.30;
-    private static final double MIN_ATTACK_DIST_SQ = 0.9 * 0.9;
-    private static final double MAX_ATTACK_DIST_SQ = 1.8 * 1.8;
     private final Random rng;
     private final long rngSeed;
     private final int variant;
+    private final NpcType npcType;
     private int moveTick = 0;
 
     private static final int SEEK_LIMIT = 15;
@@ -61,10 +60,15 @@ public class Npc extends Entity {
     private static final double WAYPOINT_EPSILON = 0.05;
 
     public Npc(int x, int y, Random rng, long rngSeed, int variant, AnimationController animationController, HealthComponent health) {
+        this(x, y, rng, rngSeed, variant, animationController, health, NpcType.DEFAULT);
+    }
+
+    public Npc(int x, int y, Random rng, long rngSeed, int variant, AnimationController animationController, HealthComponent health, NpcType npcType) {
         super(x, y, health);
         this.rng = rng;
         this.rngSeed = rngSeed;
         this.variant = variant;
+        this.npcType = npcType;
         this.animationController = animationController;
         this.drawX = posX - 0.5;
         this.drawY = posY - 0.5;
@@ -84,6 +88,9 @@ public class Npc extends Entity {
     public int variant() {
         return variant;
     }
+    public NpcType npcType() {
+        return npcType;
+    }
 
     public Random rng() {
         return rng;
@@ -100,6 +107,11 @@ public class Npc extends Entity {
         moveTick += 1;
 
         State desiredState = selectState(view);
+        // Don't change state during an active attack animation
+        if (attacking && state == State.ATTACK) {
+            desiredState = State.ATTACK;
+        }
+
         boolean stateChanged = desiredState != state;
         if (stateChanged) {
             // Clear attacking flag and cooldown when transitioning away FROM ATTACK state
@@ -159,8 +171,9 @@ public class Npc extends Entity {
         double dx = view.avatarPosition().x() - x();
         double dy = view.avatarPosition().y() - y();
         double distSq = dx * dx + dy * dy;
-
-        if (distSq <= MAX_ATTACK_DIST_SQ)
+        // Use NPC type's max attack distance to determine when to enter attack state
+        double maxAttackDistSq = npcType.getMaxAttackDistance() * npcType.getMaxAttackDistance();
+        if (distSq <= maxAttackDistSq)
             return State.ATTACK;
 
         if (distSq < SEEK_LIMIT * SEEK_LIMIT)

@@ -7,9 +7,6 @@ public class AttackBehavior implements AiBehavior {
     private static final double MELEE_HALF_EXTENT = 0.45;
     private Direction desired;
 
-    private static final double MIN_ATTACK_DIST_SQ = 0.9 * 0.9;
-    private static final double MAX_ATTACK_DIST_SQ = 1.8 * 1.8;
-
     @Override
     public void onEnterState(Npc owner) {
         desired = null;
@@ -25,25 +22,37 @@ public class AttackBehavior implements AiBehavior {
         // Always face player
         owner.setFacing(directionToward(dx, dy, owner.facing()));
 
-        // --- TOO CLOSE → BACK OFF ---
-        if (distSq < MIN_ATTACK_DIST_SQ) {
-            double len = Math.sqrt(distSq);
-            if (len > 1e-6) {
-                double backoffSpeed = 5.0; // or owner.getMoveSpeed() if you add it
-                owner.setVelocity((-dx / len) * backoffSpeed, (-dy / len) * backoffSpeed);
+        // Get the NPC's attack distance configuration
+        double minAttackDist = owner.npcType().getMinAttackDistance();
+        double maxAttackDist = owner.npcType().getMaxAttackDistance();
+        double minAttackDistSq = minAttackDist * minAttackDist;
+        double maxAttackDistSq = maxAttackDist * maxAttackDist;
+
+        // --- TOO CLOSE THEN BACK OFF ---
+        if (distSq < minAttackDistSq) {
+            double distance = Math.sqrt(distSq);
+            if (distance > 1e-6) {
+                double backoffSpeed = 5.0;
+                owner.setVelocity((-dx / distance) * backoffSpeed, (-dy / distance) * backoffSpeed);
             } else {
                 owner.setVelocity(0, 0);
             }
             return;
         }
 
-        // --- TOO FAR → DO NOTHING (SeekBehavior will handle movement) ---
-        if (distSq > MAX_ATTACK_DIST_SQ) {
-            owner.setVelocity(0, 0);
+        // --- TOO FAR THEN MOVE CLOSER (only if not actively attacking) ---
+        if (distSq > maxAttackDistSq && !owner.isAttacking()) {
+            double distance = Math.sqrt(distSq);
+            if (distance > 1e-6) {
+                double approachSpeed = 5.0;
+                owner.setVelocity((dx / distance) * approachSpeed, (dy / distance) * approachSpeed);
+            } else {
+                owner.setVelocity(0, 0);
+            }
             return;
         }
 
-        // --- IN RANGE → STOP & ATTACK ---
+        // --- IN RANGE THEN STOP & ATTACK ---
         owner.setVelocity(0, 0);
 
         if (view.overlapsAvatar(owner.posX(), owner.posY(),

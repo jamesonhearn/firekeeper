@@ -1505,16 +1505,7 @@ public class Engine implements Screen {
         }
         others.addAll(npcs);
         for (Npc npc : npcs) {
-            // Set velocity from facing direction (which comes from AI behavior)
-            // NPCs use cardinal directions from pathfinding but animate in 8 directions
-            boolean aiSetVelocity = Math.abs(npc.velocityX()) > 1e-6 || Math.abs(npc.velocityY()) > 1e-6;
-
-            if (!aiSetVelocity && npc.facing() != null) {
-                Vector2 facingVec = facingVector(npc.facing());
-                double speed = npcManager.moveSpeed();
-                npc.setVelocity(facingVec.x * speed, facingVec.y * speed);
-            }
-            
+            // AI is fully responsible for setting velocity
             npc.updateAnimation((float) deltaSeconds);
             integrateEntityMotion(npc, deltaSeconds, others);
         }

@@ -22,45 +22,33 @@ public class SeekBehavior implements AiBehavior {
 
     @Override
     public void onTick(Npc owner, WorldView view) {
-        desired = null;
+        double dx = view.avatarPosition().x() - owner.posX();
+        double dy = view.avatarPosition().y() - owner.posY();
 
-        var avatarPos = view.avatarPosition();
-        int ax = avatarPos.x();
-        int ay = avatarPos.y();
+        double distSq = dx * dx + dy * dy;
 
-        int currentDist = heuristic(owner.x(), owner.y(), ax, ay);
 
-        // Stop seeking if already within combat distance
-        // This gives enemies a comfortable attack range
-        if (currentDist <= COMBAT_DISTANCE_SQUARED) {
+        if (distSq <= COMBAT_DISTANCE_SQUARED) {
+            owner.setVelocity(0, 0);
             return;
         }
 
-        // Copy all directions
-        List<Direction> directions = new ArrayList<>(List.of(Direction.values()));
+        double dist = Math.sqrt(distSq);
 
-        // Sort by squared Eucl. distance + random jitter
-        directions.sort(Comparator.comparingInt(dir -> {
-            int nx = owner.x() + dir.getDx();
-            int ny = owner.y() + dir.getDy();
-            return heuristic(nx, ny, ax, ay) + RAND.nextInt(3);
-        }));
-
-        // choose first valid move
-        for (Direction dir : directions) {
-            int nx = owner.x() + dir.getDx();
-            int ny = owner.y() + dir.getDy();
-
-            int newDist = heuristic(nx, ny, ax, ay);
-            if (newDist < COMBAT_DISTANCE_SQUARED) {
-                continue;
-            }
-
-            if (view.isWalkable(nx, ny) && !view.isOccupied(nx, ny)) {
-                desired = dir;
-                return;
-            }
+        double stopRadius = owner.npcType().getMinAttackDistance() + 0.05;
+        if (dist < stopRadius) {
+            owner.setVelocity(0, 0);
         }
+
+        if (dist < 1e-6) {
+            owner.setVelocity(0, 0);
+            return;
+        }
+
+        double speed = 5.0;
+        owner.setVelocity((dx / dist) * speed, (dy / dist) * speed);
+
+        owner.setFacing(Direction.fromVelocity(dx, dy));
     }
 
     @Override

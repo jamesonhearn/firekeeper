@@ -55,9 +55,11 @@ public class AttackBehavior implements AiBehavior {
         // --- IN RANGE THEN STOP & ATTACK ---
         owner.setVelocity(0, 0);
 
-        if (view.overlapsAvatar(owner.posX(), owner.posY(),
-                MELEE_HALF_EXTENT, MELEE_HALF_EXTENT)) {
-            owner.markAttacking();
+        if (!owner.isAttacking() && owner.canAttack()) {
+            double dist = Math.sqrt(distSq);
+            if (dist >= minAttackDist && dist <= maxAttackDist) {
+                owner.markAttacking();
+            }
         }
     }
 

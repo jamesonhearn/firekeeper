@@ -4,7 +4,8 @@ import com.untitledgame.logic.AiBehavior;
 import com.untitledgame.logic.Direction;
 
 public class AttackBehavior implements AiBehavior {
-    private static final double MELEE_HALF_EXTENT = 0.45;
+    private static final double MELEE_HALF_EXTENT = Npc.ATTACK_HALF_EXTENT;
+    private static final int ATTACK_DAMAGE = 10;
     private Direction desired;
 
     @Override
@@ -61,6 +62,13 @@ public class AttackBehavior implements AiBehavior {
                 owner.markAttacking();
             }
         }
+        if (owner.isAttacking() && !owner.hasQueuedAttackDamage()
+                && view.overlapsAvatar(owner.posX(), owner.posY(),
+                MELEE_HALF_EXTENT, MELEE_HALF_EXTENT)) {
+            view.damageAvatar(ATTACK_DAMAGE, owner);
+            owner.markAttackDamageQueued();
+        }
+
     }
 
 

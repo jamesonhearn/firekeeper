@@ -20,6 +20,7 @@ import java.util.Random;
  */
 public class Npc extends Entity {
     public static final double HITBOX_HALF = 0.30;
+    public static final double ATTACK_HALF_EXTENT = 1.5;
     private final Random rng;
     private final long rngSeed;
     private final int variant;
@@ -35,7 +36,8 @@ public class Npc extends Entity {
     private boolean attacking = false;
     private int attackCooldownTicks = 0;
     private int attackAnimationTicks = 0; // Tracks how long attack animation has been playing
-    
+    private boolean damageQueuedThisAttack = false;
+
     // Configurable attack cooldown (in ticks, where 1 tick = 50ms)
     // TODO: Consider making these instance variables to allow different attack patterns per NPC type
     // Default: 30 ticks = 1.5 seconds between attacks
@@ -99,6 +101,13 @@ public class Npc extends Entity {
     public boolean isAttacking() {
         return attacking;
     }
+    public boolean hasQueuedAttackDamage() {
+        return damageQueuedThisAttack;
+    }
+
+    public void markAttackDamageQueued() {
+        damageQueuedThisAttack = true;
+    }
 
     /**
      * Advance one tick of NPC simulation: possibly move.
@@ -119,6 +128,7 @@ public class Npc extends Entity {
                 attacking = false;
                 attackCooldownTicks = 0;
                 attackAnimationTicks = 0;
+                damageQueuedThisAttack = false;
             }
             switchState(desiredState);
         }
@@ -132,7 +142,7 @@ public class Npc extends Entity {
             } else if (attacking) {
                 // Currently attacking - increment animation timer
                 attackAnimationTicks++;
-                
+
                 // Check if attack animation duration has elapsed
                 if (attackAnimationTicks >= ATTACK_ANIMATION_DURATION_TICKS) {
                     // Transition to cooldown
@@ -218,6 +228,7 @@ public class Npc extends Entity {
         if (canAttack()) {
             attacking = true;
             attackAnimationTicks = 0; // Start tracking animation duration
+            damageQueuedThisAttack = false;
         }
     }
     

@@ -22,13 +22,9 @@ import com.untitledgame.assets.*;
 import com.untitledgame.logic.*;
 
 import java.io.*;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
+
 import com.untitledgame.utils.FileUtils;
-import java.util.Random;
 
 import com.untitledgame.logic.items.DroppedItem;
 import com.untitledgame.logic.items.Inventory;
@@ -204,6 +200,7 @@ public class Engine implements Screen {
     private boolean attackInProgress = false;
     private boolean attackQueued = false;
     private Direction attackFacing = Direction.DOWN;
+    private final Set<Entity> damagedEntitiesThisAttack = new HashSet<>();
     private final ArrayDeque<Character> typedKeys = new ArrayDeque<>();
     private final InputState inputState = new InputState();
 
@@ -314,6 +311,7 @@ public class Engine implements Screen {
         tKeyDown = false;
         prevTKeyDown = false;
         resetLighting();
+        damagedEntitiesThisAttack.clear();
 
     }
 
@@ -1169,24 +1167,7 @@ public class Engine implements Screen {
         avatarAction = AvatarAction.ATTACK;
         avatarSprite = attackCycle.getKeyFrame(avatarStateTime);
 
-        applyAttackDamage(facing);
-    }
-
-    private void applyAttackDamage(Direction facing) {
-        if (npcManager == null) {
-            return;
-        }
-
-        double along = MELEE_REACH / 2.0;
-        double across = MELEE_HALF_WIDTH;
-
-        Vector2 dir = facingVector(facing);
-        double halfX = (Math.abs(dir.x) > 0.0) ? along : across;
-        double halfY = (Math.abs(dir.y) > 0.0) ? along : across;
-        double centerX = avatar.posX() + dir.x * (Avatar.HITBOX_HALF + along);
-        double centerY = avatar.posY() + dir.y * (Avatar.HITBOX_HALF + along);
-
-        npcManager.damageInArea(centerX, centerY, halfX, halfY, avatar, AVATAR_ATTACK_DAMAGE);
+        damagedEntitiesThisAttack.clear();
     }
 
     private void initializeAvatarAnimations(Direction facing) {
@@ -1889,6 +1870,7 @@ public class Engine implements Screen {
         if (attackInProgress && avatarAnimation.isAnimationFinished(avatarStateTime)) {
             attackInProgress = false;
             attackQueued = false;
+            damagedEntitiesThisAttack.clear();
         }
 
         // Calculate facing direction from velocity for smooth 8-directional animation
@@ -1950,12 +1932,57 @@ public class Engine implements Screen {
         }
 
         avatarSprite = avatarAnimation.getKeyFrame(avatarStateTime, looping);
+        if (attackInProgress) {
+            processAvatarAttackOverlaps();
+        }
         if (avatarAction == AvatarAction.ATTACK && avatarAnimation.isAnimationFinished(avatarStateTime)) {
             attackInProgress = false;
             attackQueued = false;
+            damagedEntitiesThisAttack.clear();
         }
         lastFacing = directionToChar(facing);
     }
+
+    private void processAvatarAttackOverlaps() {
+        if (!attackInProgress || npcManager == null || avatar == null || combatService == null) {
+            return;
+        }
+
+        AttackBounds bounds = buildAttackBounds(avatar.posX(), avatar.posY(), attackFacing,
+                Avatar.HITBOX_HALF, MELEE_REACH, MELEE_HALF_WIDTH);
+
+        for (Npc npc : npcManager.npcs()) {
+            if (damagedEntitiesThisAttack.contains(npc)) {
+                continue;
+            }
+            if (overlaps(bounds, npc.posX(), npc.posY(), Npc.HITBOX_HALF)) {
+                combatService.queueDamage(npc, avatar, AVATAR_ATTACK_DAMAGE);
+                damagedEntitiesThisAttack.add(npc);
+            }
+        }
+    }
+
+    private AttackBounds buildAttackBounds(double originX, double originY, Direction facing, double attackerHalf,
+                                           double reach, double halfWidth) {
+        double along = reach / 2.0;
+        double across = halfWidth;
+
+        Vector2 dir = facingVector(facing);
+        double halfX = (Math.abs(dir.x) > 0.0) ? along : across;
+        double halfY = (Math.abs(dir.y) > 0.0) ? along : across;
+        double centerX = originX + dir.x * (attackerHalf + along);
+        double centerY = originY + dir.y * (attackerHalf + along);
+        return new AttackBounds(centerX, centerY, halfX, halfY);
+    }
+
+    private boolean overlaps(AttackBounds bounds, double otherX, double otherY, double otherHalf) {
+        double dx = Math.abs(bounds.centerX - otherX);
+        double dy = Math.abs(bounds.centerY - otherY);
+        return dx <= (bounds.halfX + otherHalf) && dy <= (bounds.halfY + otherHalf);
+    }
+
+    private record AttackBounds(double centerX, double centerY, double halfX, double halfY) { }
+
 
     private float carryStateTime(Animation<TextureRegion> previous, Animation<TextureRegion> next, float previousStateTime) {
         if (previous == null || next == null) {

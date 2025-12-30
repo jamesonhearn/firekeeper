@@ -20,10 +20,14 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.untitledgame.assets.*;
 import com.untitledgame.logic.*;
+import com.untitledgame.ui.HudUi;
+import com.untitledgame.ui.ScreenOverlay;
+import com.untitledgame.ui.InventoryOverlay;
 
 import java.io.*;
 import java.util.*;
 
+import com.untitledgame.ui.UiFont;
 import com.untitledgame.utils.FileUtils;
 
 import com.untitledgame.logic.items.DroppedItem;
@@ -37,11 +41,6 @@ import com.untitledgame.logic.npc.NpcManager;
 
 
 public class Engine implements Screen {
-    public static final double HUD_TEXT_OFFSET_TILES = 1.5;
-    public static final int HEALTHBAR_DRAW_WIDTH = 30;
-    public static final double HEALTH_THRESHOLD_75 = 0.75;
-    public static final double HEALTH_THRESHOLD_50 = 0.50;
-    public static final double HEALTH_THRESHOLD_25 = 0.25;
     public static final double INVENTORY_ROW_SPACING = 1.5;
     public static final int HEALTH_POTION_MESSAGE_MS = 2000;
     public static final int PLAYER_HEALTH = 50;
@@ -125,14 +124,12 @@ public class Engine implements Screen {
     private double dashDistanceRemaining = 0.0;
     private final Vector2 dashDirection = new Vector2();
 
-
+    private UiAssets uiAssets;
     private static final String HB_FULL = "ui/healthbar_full.png";
     private static final String HB_75   = "ui/healthbar_75.png";
     private static final String HB_50   = "ui/healthbar_50.png";
     private static final String HB_25   = "ui/healthbar_25.png";
     private static final String HB_ZERO = "ui/healthbar_empty.png";
-    private static final double HUD_MARGIN_TILES = 0.5;
-
     private static final int TICK_MS = 50; // create ticks to create consistent movements
     private static final String[] STEP_SOUNDS = new String[]{
             "audio/step1.wav",
@@ -153,7 +150,8 @@ public class Engine implements Screen {
             "audio/cavegame.wav",
             "audio/main_menu.wav",
             "audio/friendlycave2loopable.wav",
-            "audio/elevatormovement.wav"
+            "audio/elevatormovement.wav",
+            "audio/loop_dropper.wav"
     };
     private static final String[] UI_TEXTURES = new String[]{
             HB_FULL,
@@ -250,6 +248,9 @@ public class Engine implements Screen {
     private boolean assetsReady;
     private SpriteBatch loadingBatch;
     private BitmapFont loadingFont;
+    private HudUi hudUi;
+    private ScreenOverlay screenOverlay;
+    private InventoryOverlay inventoryOverlay;
 
     public Engine(AssetManager assets) {
         this.assets = assets;
@@ -314,7 +315,7 @@ public class Engine implements Screen {
         inventory = new Inventory(DEFAULT_SLOT_COUNT);
         droppedItems = new ArrayList<>();
         inventoryVisible = false;
-        hudMessage = "";
+        clearHudMessage();
         // Reset targeting system
         targetingEnabled = false;
         currentTarget = null;
@@ -440,38 +441,18 @@ public class Engine implements Screen {
 
     private void showMainMenu() {
         renderer.clearScreen();
-        SpriteBatch batch = renderer.getBatch();
-        if (batch == null) {
+        if (screenOverlay == null) {
             return;
         }
-        renderer.beginUi();
-        float centerX = Gdx.graphics.getWidth() / 2f;
-        float centerY = Gdx.graphics.getHeight() / 2f;
-
-        float line = menuFont.getLineHeight();
-
-        drawCenteredText(titleFont, "FIREKEEPER", centerX, centerY + line * 3);
-        drawCenteredText(menuFont, "N - New World", centerX, centerY + line * 1);
-        drawCenteredText(menuFont, "L - Load", centerX, centerY);
-        drawCenteredText(menuFont, "Q - Quit", centerX, centerY - line);
-        renderer.endUi();
+        screenOverlay.renderCentered("FIREKEEPER", new String[]{"N - New World", "L - Load", "Q - Quit"});
     }
 
     private void renderSeedPrompt() {
         renderer.clearScreen();
-        SpriteBatch batch = renderer.getBatch();
-        if (batch == null) {
+        if (screenOverlay == null) {
             return;
         }
-        renderer.beginUi();
-        float centerX = Gdx.graphics.getWidth() / 2f;
-        float centerY = Gdx.graphics.getHeight() / 2f;
-
-        float line = menuFont.getLineHeight();
-
-        drawCenteredText(titleFont, "Enter Seed, then press S", centerX, centerY + line * 3);
-        drawCenteredText(menuFont, seedBuilder.toString(), centerX, centerY + line * 1);
-        renderer.endUi();
+        screenOverlay.renderCentered("Enter Seed, then press S", new String[]{seedBuilder.toString()});
     }
 
 
@@ -495,137 +476,67 @@ public class Engine implements Screen {
             renderer.applyFullLightingPass(world, context);
             renderer.endBatch();
         }
-        renderer.beginBatch();
-        drawHud();
-        renderer.endBatch();
+        renderHudLayer();
 
         if (inventoryVisible) {
             drawOverlayRect();
-            renderer.beginBatch();
             drawInventoryOverlay();
-            renderer.endBatch();
         }
         if (gameState == GameState.DEAD) {
             drawOverlayRect();
-            renderer.beginUi();
             drawDeathOverlay();
-            renderer.endUi();
         }
         if (gameState == GameState.ENDED) {
             drawOverlayRect();
-            renderer.beginBatch();
             drawEndOverlay();
-            renderer.endBatch();
         }
     }
 
-    //Draw hud (just a bar at the top that displays tile under mouse
-    private void drawHud() {
-        if (hudFont == null) {
+    private void renderHudLayer() {
+        if (hudUi == null) {
             return;
         }
-        float hudY = (float) (VIEW_HEIGHT + HUD_TEXT_OFFSET_TILES);
-
-        float barWidth = HEALTHBAR_DRAW_WIDTH;
-        float barHeight = HEALTHBAR_DRAW_WIDTH / 3.0f;
-
-        float hbX = (float) (HUD_MARGIN_TILES + barWidth / 2.0);
-        float hbY = (float) (VIEW_HEIGHT + HUD_HEIGHT - (barHeight / 2.0) - HUD_MARGIN_TILES * 2);
-        Texture healthBarTexture = healthBarTexture();
-
-        if (healthBarTexture != null) {
-            drawCenteredTexture(healthBarTexture, hbX, hbY, barWidth, barHeight);
+        int currentHealth = 0;
+        int maxHealth = 1;
+        if (avatar != null && avatar.health() != null) {
+            currentHealth = avatar.health().current();
+            maxHealth = avatar.health().max();
         }
-
-        //drawTextLeft(hudFont, tileUnderMouse(), 1f, hudY);
-        if (!hudMessage.isEmpty()) {
-            drawTextRight(hudFont, hudMessage, VIEW_WIDTH - 1f, hudY);
-        }
+        hudUi.update(currentHealth, maxHealth, Gdx.graphics.getDeltaTime());
+        hudUi.draw();
     }
-
-    private String tileUnderMouse() {
-        if (Gdx.input == null) {
-            return "";
-        }
-        Vector2 worldPos = renderer.screenToWorld(Gdx.input.getX(), Gdx.input.getY());
-        int screenX = (int) worldPos.x;
-        int screenY = (int) worldPos.y;
-
-        if (screenX < 0 || screenX >= VIEW_WIDTH || screenY < 0 || screenY >= VIEW_HEIGHT) {
-            return "";
-        }
-
-        int worldX = screenX + renderer.getViewOriginX();
-        int worldY = screenY + renderer.getViewOriginY();
-
-        if (world == null || worldX < 0 || worldX >= WORLD_WIDTH || worldY < 0 || worldY >= WORLD_HEIGHT) {
-            return "";
-        }
-
-        if (npcManager != null) {
-            for (Npc npc : npcManager.npcs()) {
-                if (npc.x() == worldX && npc.y() == worldY) {
-                    return "hostile creature";
-                }
-            }
-            if (avatar != null && avatar.x() == worldX && avatar.y() == worldY) {
-                return "avatar";
-            }
-            return world[worldX][worldY].description();
-        }
-        return "";
-
-    }
-
-
-
-
 
 
 
     private void drawDeathOverlay() {
-        float centerX = Gdx.graphics.getWidth() / 2f;
-        float centerY = Gdx.graphics.getHeight() / 2f;
-        float line = menuFont.getLineHeight();
-        drawCenteredText(titleFont, "Your light has been extinguished", centerX, centerY + line * 3);
-        drawCenteredText(menuFont, "N - New World", centerX, centerY + line * 1);
-        drawCenteredText(menuFont, "L - Load", centerX, centerY);
-        drawCenteredText(menuFont, "Q - Quit", centerX, centerY - line);
+        if (screenOverlay == null) {
+            return;
+        }
+        screenOverlay.renderCentered("Your light has been extinguished",
+                new String[]{"N - New World", "L - Load", "Q - Quit"});
     }
 
     private void drawEndOverlay() {
-        float centerX = Gdx.graphics.getWidth() / 2f;
-        float centerY = Gdx.graphics.getHeight() / 2f;
-        float line = menuFont.getLineHeight();
-        drawCenteredText(titleFont, "The lightkeeper has escaped.", centerX, centerY + line * 3);
-        drawCenteredText(menuFont, "Escape time: " + formatDuration(finalPlayTimeMs), centerX, centerY + line * 1);
-        drawCenteredText(menuFont, "Enemies felled: " + enemiesFelled, centerX, centerY);
-        drawCenteredText(menuFont, "Damage taken: " + totalDamageTaken, centerX, centerY - line);
-        drawCenteredText(menuFont, "N: Play Again", centerX, centerY - line * 2);
-        drawCenteredText(menuFont, "Q: Quit", centerX, centerY - line * 3);
+        if (screenOverlay == null) {
+            return;
+        }
+        screenOverlay.renderCentered("The lightkeeper has escaped.",
+                new String[]{
+                        "Escape time: " + formatDuration(finalPlayTimeMs),
+                        "Enemies felled: " + enemiesFelled,
+                        "Damage taken: " + totalDamageTaken,
+                        "N: Play Again",
+                        "Q: Quit"
+                });
     }
 
 
 
     private void drawInventoryOverlay() {
-        if (!inventoryVisible) {
+        if (!inventoryVisible || inventoryOverlay == null || inventory == null) {
             return;
         }
-        drawCenteredText(menuFont, "Inventory (press I to close)", VIEW_WIDTH / 2f, VIEW_HEIGHT - 2f);
-
-        float startY = VIEW_HEIGHT - 4f;
-        int index = 0;
-        for (ItemStack stack : inventory.nonEmptySlots()) {
-            float y = (float) (startY - index * INVENTORY_ROW_SPACING);
-            if (y < HUD_HEIGHT) {
-                break;
-            }
-            drawTextLeft(menuFont, stack.toString(), 2f, y);
-            index += 1;
-        }
-        if (index == 0) {
-            drawTextLeft(menuFont, "(empty)", 2f, startY);
-        }
+        inventoryOverlay.render(inventory);
     }
 
     private void drawOverlayRect() {
@@ -640,6 +551,14 @@ public class Engine implements Screen {
         shapeRenderer.end();
     }
 
+    private void drawTextLeft(BitmapFont font, String text, float x, float y) {
+        if (font == null || text == null || renderer.getBatch() == null) {
+            return;
+        }
+        font.setColor(Color.WHITE);
+        font.draw(renderer.getBatch(), text, x, y);
+    }
+
     private void drawCenteredText(BitmapFont font, String text, float centerX, float centerY) {
         if (font == null || text == null || renderer.getBatch() == null) {
             return;
@@ -649,62 +568,7 @@ public class Engine implements Screen {
         font.setColor(Color.WHITE);
         float x = centerX - glyphLayout.width / 2f;
         float y = centerY + glyphLayout.height / 2f;
-        font.getData().setScale(3f);
         font.draw(renderer.getBatch(), text, x, y);
-    }
-
-    private void drawTextLeft(BitmapFont font, String text, float x, float y) {
-        if (font == null || text == null || renderer.getBatch() == null) {
-            return;
-        }
-        font.setColor(Color.WHITE);
-        font.draw(renderer.getBatch(), text, x, y);
-    }
-
-    private void drawTextRight(BitmapFont font, String text, float rightX, float y) {
-        if (font == null || text == null || renderer.getBatch() == null) {
-            return;
-        }
-
-        ensureGlyphLayout();
-
-        // ✅ ensure same scale as other UI text
-        font.getData().setScale(0.1f);
-
-        glyphLayout.setText(font, text);
-
-        float x = rightX - glyphLayout.width;
-
-        font.setColor(Color.WHITE);
-        font.draw(renderer.getBatch(), text, x, y);
-    }
-
-    private void drawCenteredTexture(Texture texture, float centerX, float centerY, float width, float height) {
-        if (texture == null || renderer.getBatch() == null) {
-            return;
-        }
-        renderer.getBatch().draw(texture, centerX - width / 2f, centerY - height / 2f, width, height);
-    }
-
-    private Texture healthBarTexture() {
-        double pct = 0.0;
-        if (avatar != null) {
-            pct = (double) avatar.health().current() / avatar.health().max();
-        }
-
-        if (pct >= HEALTH_THRESHOLD_75) {
-            return hbFullTexture;
-        }
-        if (pct >= HEALTH_THRESHOLD_50) {
-            return hb75Texture;
-        }
-        if (pct >= HEALTH_THRESHOLD_25) {
-            return hb50Texture;
-        }
-        if (pct > 0.0) {
-            return hb25Texture;
-        }
-        return hbZeroTexture;
     }
 
     private void ensureGlyphLayout() {
@@ -714,16 +578,23 @@ public class Engine implements Screen {
     }
 
     private void onAssetsLoaded() {
-        if (assetsReady) {
-            return;
-        }
+        if (assetsReady) return;
+
         atlas = buildTextureAtlas();
         Tileset.initialize(atlas);
-        renderer.initialize(VIEW_WIDTH, VIEW_HEIGHT + HUD_HEIGHT, atlas);
+        renderer.initialize(VIEW_WIDTH, VIEW_HEIGHT, atlas);
+
+        // ✅ ADD THIS
+        uiAssets = new UiAssets();
+        uiAssets.load();
+
         ensureHudAssetsLoaded();
+        initializeHudUi();
+        initializeScreenOverlay();
+        initializeInventoryOverlay();
+
         assetsReady = true;
     }
-
     private TextureAtlas buildTextureAtlas() {
         TextureAtlas built = new TextureAtlas();
         List<SpriteSheetConfig> spriteSheets = createSpriteSheetConfigs();
@@ -775,16 +646,10 @@ public class Engine implements Screen {
         if (titleFont != null) {
             return;
         }
-        titleFont = new BitmapFont();
-        menuFont = new BitmapFont();
-        hudFont = new BitmapFont();
-        titleFont.getData().setScale(1f);
-        menuFont.getData().setScale(1f);
-        hudFont.getData().setScale(1f);
-        titleFont.setColor(Color.WHITE);
-        menuFont.setColor(Color.WHITE);
-        hudFont.setColor(Color.WHITE);
 
+        titleFont = uiAssets.font(UiFont.TITLE);
+        menuFont  = uiAssets.font(UiFont.BODY);
+        hudFont   = uiAssets.font(UiFont.BODY);
         hbFullTexture = assets.get(HB_FULL, Texture.class);
         hb75Texture = assets.get(HB_75, Texture.class);
         hb50Texture = assets.get(HB_50, Texture.class);
@@ -792,18 +657,49 @@ public class Engine implements Screen {
         hbZeroTexture = assets.get(HB_ZERO, Texture.class);
     }
 
+    private void initializeHudUi() {
+        if (hudUi != null) {
+            return;
+        }
+        if (hudFont == null || hbFullTexture == null || hb75Texture == null
+                || hb50Texture == null || hb25Texture == null || hbZeroTexture == null) {
+            return;
+        }
+        hudUi = new HudUi(hudFont, hbFullTexture, hb75Texture, hb50Texture, hb25Texture, hbZeroTexture);
+        pushHudMessageToUi(remainingHudMessageDuration());
+    }
+
+    private void initializeScreenOverlay() {
+        if (screenOverlay != null || titleFont == null || menuFont == null) {
+            return;
+        }
+        screenOverlay = new ScreenOverlay(titleFont, menuFont);
+    }
+
+    private void initializeInventoryOverlay() {
+        if (inventoryOverlay != null || menuFont == null) {
+            return;
+        }
+        inventoryOverlay = new InventoryOverlay(titleFont, menuFont);
+    }
+
     private void disposeHudAssets() {
         if (titleFont != null) {
-            titleFont.dispose();
             titleFont = null;
         }
         if (menuFont != null) {
-            menuFont.dispose();
             menuFont = null;
         }
         if (hudFont != null) {
-            hudFont.dispose();
             hudFont = null;
+        }
+        if (inventoryOverlay != null) {
+            inventoryOverlay.dispose();
+            inventoryOverlay = null;
+        }
+        if (screenOverlay != null) {
+            screenOverlay.dispose();
+            screenOverlay = null;
         }
         if (hbFullTexture != null) {
             hbFullTexture = null;
@@ -1442,16 +1338,13 @@ public class Engine implements Screen {
                 if (leftover > 0) {
                     drop.setQuantity(leftover);
                     remaining.add(drop);
-                    hudMessage = "Inventory full - left " + leftover + " " + drop.item().name();
+                    showHudMessage("Inventory full - left " + leftover + " " + drop.item().name());
                 } else {
-                    hudMessage = "Picked up " + drop.item().name();
+                    showHudMessage("Picked up " + drop.item().name());
                 }
             } else {
                 remaining.add(drop);
             }
-        }
-        if (!pickedSomething) {
-            hudMessage = "";
         }
         droppedItems = remaining;
     }
@@ -1460,11 +1353,42 @@ public class Engine implements Screen {
     private void setHudMessage(String msg, long durationMs) {
         hudMessage = msg;
         hudMessageExpireMs = System.currentTimeMillis() + durationMs;
+        pushHudMessageToUi(durationMs);
+    }
+
+    private void showHudMessage(String msg) {
+        hudMessage = msg;
+        hudMessageExpireMs = 0L;
+        pushHudMessageToUi(0L);
+    }
+
+    private void clearHudMessage() {
+        hudMessage = "";
+        hudMessageExpireMs = 0L;
+        pushHudMessageToUi(0L);
+    }
+
+    private void pushHudMessageToUi(long durationMs) {
+        if (hudUi == null) {
+            return;
+        }
+        if (hudMessage.isEmpty()) {
+            hudUi.clearMessage();
+            return;
+        }
+        hudUi.setMessage(hudMessage, durationMs);
+    }
+
+    private long remainingHudMessageDuration() {
+        if (hudMessageExpireMs == 0L) {
+            return 0L;
+        }
+        return Math.max(0L, hudMessageExpireMs - System.currentTimeMillis());
     }
 
     private void updateHudMessage() {
-        if (!hudMessage.isEmpty() && System.currentTimeMillis() > hudMessageExpireMs) {
-            hudMessage = "";
+        if (!hudMessage.isEmpty() && hudMessageExpireMs > 0 && System.currentTimeMillis() > hudMessageExpireMs) {
+            clearHudMessage();
         }
     }
 
@@ -1501,7 +1425,7 @@ public class Engine implements Screen {
             if (decayingLightRadius <= 1.0) {
                 decayingLightRadius = 1.0;
                 renderer.setLightRadius(decayingLightRadius);
-                hudMessage = "Your light has been extinguished";
+                showHudMessage("Your light has been extinguished");
                 handleAvatarDeath(avatar);
             }
         }
@@ -2021,7 +1945,7 @@ public class Engine implements Screen {
             // Normal movement-based facing
             facing = getMovementBasedFacing();
         }
-        
+
         AvatarAction desiredAction = (gameState == GameState.PLAYING)
                 ? (attackInProgress
                 ? AvatarAction.ATTACK
@@ -2241,11 +2165,11 @@ public class Engine implements Screen {
             HealthComponent health = new HealthComponent(healthState.current(), healthState.max(),
                     healthState.armor(), healthState.invulnerabilityFrames());
             health.setInvulnerabilityRemaining(healthState.invulnerabilityRemaining());
-            
+
             // Create animation controller with all animation types
-            com.untitledgame.animation.AnimationController animationController = 
+            com.untitledgame.animation.AnimationController animationController =
                     com.untitledgame.animation.AnimationFactory.createNpcController(atlas, state.variant());
-            
+
             Npc npc = new Npc(state.x(), state.y(), new Random(state.rngSeed()), state.rngSeed(), state.variant(),
                     animationController, health);
             npc.setDrawX(state.drawX());
@@ -2465,15 +2389,10 @@ public class Engine implements Screen {
     }
     private void drawPauseOverlay() {
         drawOverlayRect();
-        renderer.beginUi();
-        float centerX = Gdx.graphics.getWidth() / 2f;
-        float centerY = Gdx.graphics.getHeight() / 2f;
-
-        float line = menuFont.getLineHeight();
-
-        drawCenteredText(titleFont, "Paused", centerX, centerY + line * 3);
-        drawCenteredText(menuFont, "Press ESC to Resume", centerX, centerY + line * 1);
-        renderer.endUi();
+        if (screenOverlay == null) {
+            return;
+        }
+        screenOverlay.renderCentered("Paused", new String[]{"Press ESC to Resume"});
 
     }
 
@@ -2487,7 +2406,7 @@ public class Engine implements Screen {
         tickAccumulatorMs = 0.0;
         if (!gameplayMusicStarted) {
             music.stop();
-            music.playLoop("audio/friendlycave2loopable.wav");
+            music.playLoop("audio/loop_dropper.wav");
             gameplayMusicStarted = true;
         }
     }
@@ -2503,6 +2422,15 @@ public class Engine implements Screen {
     @Override
     public void resize(int width, int height) {
         renderer.resize(width, height);
+        if (hudUi != null) {
+            hudUi.resize(width, height);
+        }
+        if (screenOverlay != null) {
+            screenOverlay.resize(width, height);
+        }
+        if (inventoryOverlay != null) {
+            inventoryOverlay.resize(width, height);
+        }
     }
 
     @Override
@@ -2523,15 +2451,18 @@ public class Engine implements Screen {
     @Override
     public void dispose() {
         music.stop();
+
+        if (hudUi != null) {
+            hudUi.dispose();
+            hudUi = null;
+        }
+
+        if (uiAssets != null) {
+            uiAssets.dispose();
+            uiAssets = null;
+        }
+
         disposeHudAssets();
         renderer.dispose();
-        if (loadingBatch != null) {
-            loadingBatch.dispose();
-            loadingBatch = null;
-        }
-        if (loadingFont != null) {
-            loadingFont.dispose();
-            loadingFont = null;
-        }
     }
 }

@@ -10,10 +10,10 @@ import java.util.List;
 import java.util.Random;
 
 public class World {
-    public static final int WIDTH = 250;
+    public static final int WIDTH = 100;
     public static final int HEIGHT = 100;
-    private static final int MIN_ROOM_SIZE = 10;
-    private static final int MAX_ROOM_SIZE = 30;
+    private static final int MIN_ROOM_SIZE = 6;
+    private static final int MAX_ROOM_SIZE = 20;
     private static final int MAX_ROOM_ATTEMPTS = 1000;
     private static final double TARGET_FILL_RATIO = 0.85;
     private static final int MAX_DIST = 30;

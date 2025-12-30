@@ -12,7 +12,7 @@ public final class DesktopLauncher {
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.setTitle("UntitledGame");
-        config.setWindowedMode(1280, 720);
+        config.setWindowedMode(1920, 1080);
         new Lwjgl3Application(new UntitledGame(), config);
     }
 }

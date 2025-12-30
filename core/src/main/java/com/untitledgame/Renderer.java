@@ -136,6 +136,9 @@ public class Renderer implements AutoCloseable {
     private int lastLightCount = 0;
     private final List<LightSource> activeLights = new ArrayList<>();
 
+
+    private OrthographicCamera uiCamera;
+
     private SpriteBatch batch;
     private ShapeRenderer shapeRenderer;
     private OrthographicCamera camera;
@@ -301,6 +304,8 @@ public class Renderer implements AutoCloseable {
         this.xOffset = xOff;
         this.yOffset = yOff;
         this.textureAtlas = atlas;
+        uiCamera = new OrthographicCamera();
+        uiCamera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 
         if (viewWidth == 0) {
             viewWidth = w;
@@ -940,6 +945,14 @@ public class Renderer implements AutoCloseable {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
     }
 
+    public void beginUi() {
+        batch.setProjectionMatrix(uiCamera.combined);
+        batch.begin();
+    }
+    public void endUi() {
+        batch.end();
+    }
+
     public void beginBatch() {
         if (batch == null || camera == null) {
             return;
@@ -982,6 +995,22 @@ public class Renderer implements AutoCloseable {
     }
 
     public void resize(int screenWidth, int screenHeight) {
+
+        // Ensure cameras exist before using them
+        if (camera == null) {
+            camera = new OrthographicCamera();
+        }
+        if (uiCamera == null) {
+            uiCamera = new OrthographicCamera();
+        }
+
+        camera.viewportWidth = width;
+        camera.viewportHeight = height;
+        camera.update();
+
+        uiCamera.setToOrtho(false, screenWidth, screenHeight);
+        uiCamera.update();
+
         if (viewport != null) {
             viewport.update(screenWidth, screenHeight, true);
         }

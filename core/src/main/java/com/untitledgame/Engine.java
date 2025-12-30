@@ -117,9 +117,13 @@ public class Engine implements Screen {
     private boolean wDown, aDown, sDown, dDown;
     private char currentDirection = 0;
     private boolean shiftDown = false;
+    private boolean prevShiftDown = false;
     private boolean prevWDown, prevADown, prevSDown, prevDDown;
     private boolean prevAttackDown;
     private boolean prevTabDown;
+    private boolean dashInProgress = false;
+    private double dashDistanceRemaining = 0.0;
+    private final Vector2 dashDirection = new Vector2();
 
 
     private static final String HB_FULL = "ui/healthbar_full.png";
@@ -176,7 +180,9 @@ public class Engine implements Screen {
 
 
     private static final double AVATAR_WALK_SPEED = 5.0;
-    private static final double AVATAR_RUN_SPEED = 10.0;
+    private static final double AVATAR_DASH_DISTANCE = 3.0;
+    private static final double AVATAR_DASH_DURATION_SECONDS = 0.1;
+    private static final double AVATAR_DASH_SPEED = AVATAR_DASH_DISTANCE / AVATAR_DASH_DURATION_SECONDS;
     private static final double MELEE_HALF_WIDTH = 0.45;
     private static final double MELEE_REACH = 0.70;
     private static final double COLLISION_EPSILON = 1e-4;
@@ -211,7 +217,7 @@ public class Engine implements Screen {
     private boolean tKeyDown = false;
     private boolean prevTKeyDown = false;
 
-    private enum GameState { PLAYING, DYING, DEAD, ENDING, ENDED }
+    private enum GameState { PLAYING, DYING, DEAD, ENDING, PAUSED, ENDED }
     private GameState gameState = GameState.PLAYING;
     private double endFadeStartRadius = BASE_LIGHT_RADIUS;
     private long endFadeStartMs = -1L;
@@ -280,6 +286,7 @@ public class Engine implements Screen {
         sDown = false;
         dDown = false;
         shiftDown = false;
+        prevShiftDown = false;
         tabDown = false;
         prevWDown = false;
         prevADown = false;
@@ -287,6 +294,9 @@ public class Engine implements Screen {
         prevDDown = false;
         prevAttackDown = false;
         prevTabDown = false;
+        dashInProgress = false;
+        dashDistanceRemaining = 0.0;
+        dashDirection.set(0f, 0f);
         awaitingQuitCommand = false;
         typedKeys.clear();
         gameState = GameState.PLAYING;
@@ -434,12 +444,17 @@ public class Engine implements Screen {
         if (batch == null) {
             return;
         }
-        renderer.beginBatch();
-        drawCenteredText(titleFont, "FIREKEEPER", VIEW_WIDTH / 2f, VIEW_HEIGHT / 2f + 7f);
-        drawCenteredText(menuFont, "N - New World", VIEW_WIDTH / 2f, VIEW_HEIGHT / 2f + 1f);
-        drawCenteredText(menuFont, "L - Load", VIEW_WIDTH / 2f, VIEW_HEIGHT / 2f);
-        drawCenteredText(menuFont, "Q - Quit", VIEW_WIDTH / 2f, VIEW_HEIGHT / 2f - 1f);
-        renderer.endBatch();
+        renderer.beginUi();
+        float centerX = Gdx.graphics.getWidth() / 2f;
+        float centerY = Gdx.graphics.getHeight() / 2f;
+
+        float line = menuFont.getLineHeight();
+
+        drawCenteredText(titleFont, "FIREKEEPER", centerX, centerY + line * 3);
+        drawCenteredText(menuFont, "N - New World", centerX, centerY + line * 1);
+        drawCenteredText(menuFont, "L - Load", centerX, centerY);
+        drawCenteredText(menuFont, "Q - Quit", centerX, centerY - line);
+        renderer.endUi();
     }
 
     private void renderSeedPrompt() {
@@ -448,10 +463,15 @@ public class Engine implements Screen {
         if (batch == null) {
             return;
         }
-        renderer.beginBatch();
-        drawCenteredText(menuFont, "Enter Seed, then press S", VIEW_WIDTH / 2f, VIEW_HEIGHT / 2f + 2f);
-        drawCenteredText(menuFont, seedBuilder.toString(), VIEW_WIDTH / 2f, VIEW_HEIGHT / 2f);
-        renderer.endBatch();
+        renderer.beginUi();
+        float centerX = Gdx.graphics.getWidth() / 2f;
+        float centerY = Gdx.graphics.getHeight() / 2f;
+
+        float line = menuFont.getLineHeight();
+
+        drawCenteredText(titleFont, "Enter Seed, then press S", centerX, centerY + line * 3);
+        drawCenteredText(menuFont, seedBuilder.toString(), centerX, centerY + line * 1);
+        renderer.endUi();
     }
 
 
@@ -487,9 +507,9 @@ public class Engine implements Screen {
         }
         if (gameState == GameState.DEAD) {
             drawOverlayRect();
-            renderer.beginBatch();
+            renderer.beginUi();
             drawDeathOverlay();
-            renderer.endBatch();
+            renderer.endUi();
         }
         if (gameState == GameState.ENDED) {
             drawOverlayRect();
@@ -517,7 +537,7 @@ public class Engine implements Screen {
             drawCenteredTexture(healthBarTexture, hbX, hbY, barWidth, barHeight);
         }
 
-        drawTextLeft(hudFont, tileUnderMouse(), 1f, hudY);
+        //drawTextLeft(hudFont, tileUnderMouse(), 1f, hudY);
         if (!hudMessage.isEmpty()) {
             drawTextRight(hudFont, hudMessage, VIEW_WIDTH - 1f, hudY);
         }
@@ -557,25 +577,35 @@ public class Engine implements Screen {
 
     }
 
+
+
+
+
+
+
     private void drawDeathOverlay() {
-        drawCenteredText(menuFont, "Your light has been extinguished",
-                VIEW_WIDTH / 2f, VIEW_HEIGHT / 2f + 2f);
-        drawCenteredText(menuFont, "N: New Game", VIEW_WIDTH / 2f, VIEW_HEIGHT / 2f);
-        drawCenteredText(menuFont, "L: Restore Save", VIEW_WIDTH / 2f, VIEW_HEIGHT / 2f - 1f);
-        drawCenteredText(menuFont, "Q: Quit", VIEW_WIDTH / 2f, VIEW_HEIGHT / 2f - 2f);
+        float centerX = Gdx.graphics.getWidth() / 2f;
+        float centerY = Gdx.graphics.getHeight() / 2f;
+        float line = menuFont.getLineHeight();
+        drawCenteredText(titleFont, "Your light has been extinguished", centerX, centerY + line * 3);
+        drawCenteredText(menuFont, "N - New World", centerX, centerY + line * 1);
+        drawCenteredText(menuFont, "L - Load", centerX, centerY);
+        drawCenteredText(menuFont, "Q - Quit", centerX, centerY - line);
     }
 
     private void drawEndOverlay() {
-        float centerX = VIEW_WIDTH / 2f;
-        float centerY = VIEW_HEIGHT / 2f + 3f;
-        drawCenteredText(menuFont, "The lightkeeper has escaped.", centerX, centerY);
-        drawCenteredText(menuFont, "Escape time: " + formatDuration(finalPlayTimeMs), centerX, centerY - 2f);
-        drawCenteredText(menuFont, "Enemies felled: " + enemiesFelled, centerX, centerY - 3f);
-        drawCenteredText(menuFont, "Damage taken: " + totalDamageTaken, centerX, centerY - 4f);
-        drawCenteredText(menuFont, "Damage given: " + totalDamageGiven, centerX, centerY - 5f);
-        drawCenteredText(menuFont, "N: Play Again", centerX, centerY - 7f);
-        drawCenteredText(menuFont, "Q: Quit", centerX, centerY - 8f);
+        float centerX = Gdx.graphics.getWidth() / 2f;
+        float centerY = Gdx.graphics.getHeight() / 2f;
+        float line = menuFont.getLineHeight();
+        drawCenteredText(titleFont, "The lightkeeper has escaped.", centerX, centerY + line * 3);
+        drawCenteredText(menuFont, "Escape time: " + formatDuration(finalPlayTimeMs), centerX, centerY + line * 1);
+        drawCenteredText(menuFont, "Enemies felled: " + enemiesFelled, centerX, centerY);
+        drawCenteredText(menuFont, "Damage taken: " + totalDamageTaken, centerX, centerY - line);
+        drawCenteredText(menuFont, "N: Play Again", centerX, centerY - line * 2);
+        drawCenteredText(menuFont, "Q: Quit", centerX, centerY - line * 3);
     }
+
+
 
     private void drawInventoryOverlay() {
         if (!inventoryVisible) {
@@ -619,6 +649,7 @@ public class Engine implements Screen {
         font.setColor(Color.WHITE);
         float x = centerX - glyphLayout.width / 2f;
         float y = centerY + glyphLayout.height / 2f;
+        font.getData().setScale(3f);
         font.draw(renderer.getBatch(), text, x, y);
     }
 
@@ -634,9 +665,16 @@ public class Engine implements Screen {
         if (font == null || text == null || renderer.getBatch() == null) {
             return;
         }
+
         ensureGlyphLayout();
+
+        // ✅ ensure same scale as other UI text
+        font.getData().setScale(0.1f);
+
         glyphLayout.setText(font, text);
+
         float x = rightX - glyphLayout.width;
+
         font.setColor(Color.WHITE);
         font.draw(renderer.getBatch(), text, x, y);
     }
@@ -740,10 +778,9 @@ public class Engine implements Screen {
         titleFont = new BitmapFont();
         menuFont = new BitmapFont();
         hudFont = new BitmapFont();
-        float baseScale = 1f / 16f;
-        titleFont.getData().setScale(baseScale * 2.5f);
-        menuFont.getData().setScale(baseScale * 1.2f);
-        hudFont.getData().setScale(baseScale);
+        titleFont.getData().setScale(1f);
+        menuFont.getData().setScale(1f);
+        hudFont.getData().setScale(1f);
         titleFont.setColor(Color.WHITE);
         menuFont.setColor(Color.WHITE);
         hudFont.setColor(Color.WHITE);
@@ -979,17 +1016,7 @@ public class Engine implements Screen {
         boolean s = sDown;
         boolean d = dDown;
         boolean attack = attackDown;
-
-        if (attack && !prevAttackDown) {
-            // Calculate attack facing from current velocity or last facing
-            Direction facing;
-            if (Math.abs(avatar.velocityX()) > VELOCITY_EPSILON || Math.abs(avatar.velocityY()) > VELOCITY_EPSILON) {
-                facing = Direction.fromVelocity(avatar.velocityX(), avatar.velocityY());
-            } else {
-                facing = avatar.facing();
-            }
-            startAttack(facing);
-        }
+        boolean dashPressed = shiftDown && !prevShiftDown;
 
         updateDirectionOnPress(w, a, s, d, prevWDown, prevADown, prevSDown, prevDDown);
         updateDirectionOnRelease(w, a, s, d);
@@ -1006,25 +1033,37 @@ public class Engine implements Screen {
                 || (s && !prevSDown)
                 || (d && !prevDDown);
 
-        if (inputActive) {
-            desired.nor();
-            double speed = shiftDown ? AVATAR_RUN_SPEED : AVATAR_WALK_SPEED;
-            avatar.setVelocity(desired.x * speed, desired.y * speed);
-            if (record && freshPress && currentDirection != 0) {
-                history.append(currentDirection);
-            }
-        } else {
-            avatar.setVelocity(0.0, 0.0);
-            currentDirection = 0;
+        Direction movementFacing = inputActive ? Direction.fromVelocity(desired.x, desired.y) : null;
+        if (dashPressed) {
+            startDash(movementFacing);
+        }
+        Direction actionFacing = resolveFacingForAction(movementFacing);
+        if (attack && !prevAttackDown) {
+            startAttack(actionFacing);
         }
 
-        boolean movedThisFrame = integrateAvatarMotion(deltaSeconds);
-
+        boolean movedThisFrame;
+        if (dashInProgress) {
+            movedThisFrame = updateDashMovement(deltaSeconds);
+        } else {
+            if (inputActive) {
+                desired.nor();
+                avatar.setVelocity(desired.x * AVATAR_WALK_SPEED, desired.y * AVATAR_WALK_SPEED);
+                if (record && freshPress && currentDirection != 0) {
+                    history.append(currentDirection);
+                }
+            } else {
+                avatar.setVelocity(0.0, 0.0);
+                currentDirection = 0;
+            }
+            movedThisFrame = integrateAvatarMotion(deltaSeconds);
+        }
         prevWDown = w;
         prevADown = a;
         prevSDown = s;
         prevDDown = d;
         prevAttackDown = attack;
+        prevShiftDown = shiftDown;
 
         if (movedThisFrame) {
             music.playRandomEffect();
@@ -1158,17 +1197,71 @@ public class Engine implements Screen {
         if (avatar == null || attackInProgress) {
             return;
         }
+        Direction resolvedFacing = resolveFacingForAction(facing);
         attackInProgress = true;
         attackQueued = true;
-        attackFacing = facing;
-        Animation<TextureRegion> attackCycle = avatarAnimations.get(AvatarAction.ATTACK).get(facing);
         avatarStateTime = 0f;
+        attackFacing = resolvedFacing;
+        Animation<TextureRegion> attackCycle = avatarAnimations.get(AvatarAction.ATTACK).get(resolvedFacing);
         avatarAnimation = attackCycle;
         avatarAction = AvatarAction.ATTACK;
         avatarSprite = attackCycle.getKeyFrame(avatarStateTime);
 
         damagedEntitiesThisAttack.clear();
     }
+    private void startDash(Direction preferredFacing) {
+        if (avatar == null || dashInProgress) {
+            return;
+        }
+        Direction dashFacing = preferredFacing != null ? preferredFacing : resolveFacingForAction(null);
+        if (avatar != null && preferredFacing != null) {
+            avatar.setFacing(dashFacing);
+        }
+        dashDirection.set(facingVector(dashFacing)).nor();
+        dashDistanceRemaining = AVATAR_DASH_DISTANCE;
+        dashInProgress = true;
+        currentDirection = directionToChar(dashFacing);
+    }
+
+    private boolean updateDashMovement(double deltaSeconds) {
+        if (avatar == null || !dashInProgress) {
+            return false;
+        }
+        double startX = avatar.posX();
+        double startY = avatar.posY();
+        double stepSeconds = Math.min(deltaSeconds, dashDistanceRemaining / AVATAR_DASH_SPEED);
+        avatar.setVelocity(dashDirection.x * AVATAR_DASH_SPEED, dashDirection.y * AVATAR_DASH_SPEED);
+        integrateAvatarMotion(stepSeconds);
+        double moved = Math.hypot(avatar.posX() - startX, avatar.posY() - startY);
+        dashDistanceRemaining = Math.max(0.0, dashDistanceRemaining - moved);
+        boolean finished = dashDistanceRemaining <= COLLISION_EPSILON
+                || (stepSeconds > 0.0 && moved < COLLISION_EPSILON);
+        if (finished) {
+            dashInProgress = false;
+            avatar.setVelocity(0.0, 0.0);
+        }
+        return moved > 0.0;
+    }
+
+    private Direction resolveFacingForAction(Direction movementFacing) {
+        if (targetingEnabled) {
+            Direction targetFacing = getTargetFacing();
+            if (targetFacing != null) {
+                if (avatar != null) {
+                    avatar.setFacing(targetFacing);
+                }
+                return targetFacing;
+            }
+        }
+        if (movementFacing != null) {
+            if (avatar != null) {
+                avatar.setFacing(movementFacing);
+            }
+            return movementFacing;
+        }
+        return avatar != null ? avatar.facing() : Direction.DOWN;
+    }
+
 
     private void initializeAvatarAnimations(Direction facing) {
         avatarAnimations.clear();
@@ -1760,6 +1853,13 @@ public class Engine implements Screen {
     private class InputState implements InputProcessor {
         @Override
         public boolean keyDown(int keycode) {
+            if (keycode == Input.Keys.ESCAPE) {
+                togglePause();
+                return true;
+            }
+
+            if (gameState != GameState.PLAYING) return false;
+
             if (keycode == Input.Keys.W) {
                 wDown = true;
             } else if (keycode == Input.Keys.A) {
@@ -1772,12 +1872,31 @@ public class Engine implements Screen {
                 attackDown = true;
             } else if (keycode == Input.Keys.V) {
                 tabDown = true;
-            } else if (keycode == Input.Keys.T) {
+            } else if (keycode == Input.Keys.CONTROL_LEFT) {
                 tKeyDown = true;
             } else if (keycode == Input.Keys.SHIFT_LEFT || keycode == Input.Keys.SHIFT_RIGHT) {
                 shiftDown = true;
             }
             return false;
+        }
+        private void togglePause() {
+            if (gameState == GameState.PLAYING) {
+                gameState = GameState.PAUSED;
+
+                // stop motion
+                if (avatar != null) {
+                    avatar.setVelocity(0, 0);
+                }
+
+                // release mouse
+                Gdx.input.setCursorCatched(false);
+            }
+            else if (gameState == GameState.PAUSED) {
+                gameState = GameState.PLAYING;
+
+                // recapture mouse
+                Gdx.input.setCursorCatched(true);
+            }
         }
 
         @Override
@@ -1790,11 +1909,11 @@ public class Engine implements Screen {
                 sDown = false;
             } else if (keycode == Input.Keys.D) {
                 dDown = false;
-            } else if (keycode == Input.Keys.SPACE) {
-                attackDown = false;
             } else if (keycode == Input.Keys.V) {
                 tabDown = false;
-            } else if (keycode == Input.Keys.T) {
+            } else if (keycode == Input.Keys.SPACE) {
+                attackDown = false;
+            } else if (keycode == Input.Keys.CONTROL_LEFT) {
                 tKeyDown = false;
             } else if (keycode == Input.Keys.SHIFT_LEFT || keycode == Input.Keys.SHIFT_RIGHT) {
                 shiftDown = false;
@@ -1810,11 +1929,19 @@ public class Engine implements Screen {
 
         @Override
         public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+            if (button == Input.Buttons.LEFT) {
+                attackDown = true;
+                return true;
+            }
             return false;
         }
 
         @Override
         public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+            if (button == Input.Buttons.LEFT) {
+                attackDown = false;
+                return true;
+            }
             return false;
         }
 
@@ -1898,9 +2025,11 @@ public class Engine implements Screen {
         AvatarAction desiredAction = (gameState == GameState.PLAYING)
                 ? (attackInProgress
                 ? AvatarAction.ATTACK
+                : (dashInProgress
+                ? AvatarAction.RUN
                 : (currentDirection == 0)
                 ? AvatarAction.IDLE
-                : (shiftDown ? AvatarAction.RUN : AvatarAction.WALK))
+                : AvatarAction.WALK))
                 : AvatarAction.DEATH;
 
         EnumMap<Direction, Animation<TextureRegion>> byDirection = avatarAnimations.get(desiredAction);
@@ -2177,6 +2306,7 @@ public class Engine implements Screen {
     @Override
     public void show() {
         installInputProcessor();
+        Gdx.input.setCursorCatched(true);
         phase = EnginePhase.MENU;
         menuMusicStarted = false;
         gameplayMusicStarted = false;
@@ -2197,14 +2327,20 @@ public class Engine implements Screen {
     }
 
     private void update(double deltaSeconds) {
+        if (gameState == GameState.PAUSED) {
+            return;
+        }
+
         if (phase == EnginePhase.MENU) {
             updateMenu();
             return;
         }
+
         if (phase == EnginePhase.SEED_ENTRY) {
             updateSeedEntry();
             return;
         }
+
         updateGameplay(deltaSeconds);
     }
 
@@ -2323,6 +2459,22 @@ public class Engine implements Screen {
             return;
         }
         renderWithHud();
+        if (gameState == GameState.PAUSED) {
+            drawPauseOverlay();
+        }
+    }
+    private void drawPauseOverlay() {
+        drawOverlayRect();
+        renderer.beginUi();
+        float centerX = Gdx.graphics.getWidth() / 2f;
+        float centerY = Gdx.graphics.getHeight() / 2f;
+
+        float line = menuFont.getLineHeight();
+
+        drawCenteredText(titleFont, "Paused", centerX, centerY + line * 3);
+        drawCenteredText(menuFont, "Press ESC to Resume", centerX, centerY + line * 1);
+        renderer.endUi();
+
     }
 
     private void beginSeedEntry() {

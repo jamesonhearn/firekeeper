@@ -290,6 +290,7 @@ public class Engine implements Screen {
         combatService = new CombatService();
         combatService.setDamageListener(this::recordDamageStats);
         combatService.setParryChecker(this::isEntityParrying);
+        combatService.setDodgeChecker(this::shouldEntityDodge);
         avatarAnimations.clear();
         avatarAnimation = null;
         avatarAction = AvatarAction.IDLE;
@@ -441,6 +442,9 @@ public class Engine implements Screen {
         npcConfig.addAnimation("walk", "Walk.png", 15);
         npcConfig.addAnimation("attack1", "Attack1.png", 15);
         npcConfig.addAnimation("attack2", "Attack2.png", 15);
+        npcConfig.addAnimation("rolling", "Rolling.png", 15);
+        npcConfig.addAnimation("slide", "Slide.png", 15);
+
         npcConfig.addAnimation("takedamage", "TakeDamage.png", 15);
         npcConfig.addAnimation("die", "Die.png", 15);
         configs.addAll(npcConfig.createSpriteSheetConfigs());
@@ -596,7 +600,6 @@ public class Engine implements Screen {
         Tileset.initialize(atlas);
         renderer.initialize(VIEW_WIDTH, VIEW_HEIGHT, atlas);
 
-        // ✅ ADD THIS
         uiAssets = new UiAssets();
         uiAssets.load();
 
@@ -1548,6 +1551,57 @@ public class Engine implements Screen {
     }
 
 
+    private boolean shouldEntityDodge(Entity target, Entity source) {
+        // Only NPCs can dodge
+        if (!(target instanceof Npc npc)) {
+            return false;
+        }
+
+        // Don't dodge if already dodging or dead
+        if (npc.isDodging() || npc.health() == null || npc.health().isDepleted()) {
+            return false;
+        }
+
+        // Probabilistic dodge check - access package-private constant directly
+        if (npc.rng().nextDouble() >= Npc.DODGE_PROBABILITY) {
+            return false;
+        }
+
+        // Calculate dodge direction (away from source, not toward player)
+        Direction dodgeDir = calculateDodgeDirection(npc, source);
+        npc.triggerDodge(dodgeDir);
+
+        return true;
+    }
+
+    private static final double POSITION_EPSILON = 0.01; // Threshold for position comparison
+
+    private Direction calculateDodgeDirection(Npc npc, Entity source) {
+        if (source == null) {
+            // If no source, dodge in a random direction
+            Direction[] directions = Direction.values();
+            return directions[npc.rng().nextInt(directions.length)];
+        }
+
+        // Calculate vector away from source
+        double dx = npc.posX() - source.posX();
+        double dy = npc.posY() - source.posY();
+
+        // If source is exactly on top of NPC, pick random direction
+        if (Math.abs(dx) < POSITION_EPSILON && Math.abs(dy) < POSITION_EPSILON) {
+            Direction[] directions = Direction.values();
+            return directions[npc.rng().nextInt(directions.length)];
+        }
+
+        // Pick primary direction away from source
+        if (Math.abs(dx) > Math.abs(dy)) {
+            return dx > 0 ? Direction.RIGHT : Direction.LEFT;
+        } else {
+            return dy > 0 ? Direction.UP : Direction.DOWN;
+        }
+    }
+
+
 
     private void checkForEndgame() {
         if (gameState != GameState.PLAYING || world == null || avatar == null) {
@@ -1645,7 +1699,7 @@ public class Engine implements Screen {
             int endTile = (int) Math.floor(target + half);
             for (int t = startTile + 1; t <= endTile; t += 1) {
                 if (axisX) {
-                    // Sweeping along X → check Y span
+                    // Sweeping along X then check Y span
                     int minY = (int) Math.floor(posY - half);
                     int maxY = (int) Math.floor(posY + half);
                     for (int y = minY; y <= maxY; y++) {
@@ -1654,7 +1708,7 @@ public class Engine implements Screen {
                         }
                     }
                 } else {
-                    // Sweeping along Y → check X span
+                    // Sweeping along Y then check X span
                     int minX = (int) Math.floor(posX - half);
                     int maxX = (int) Math.floor(posX + half);
                     for (int x = minX; x <= maxX; x++) {
@@ -1670,7 +1724,7 @@ public class Engine implements Screen {
             int endTile = (int) Math.floor(target - half);
             for (int t = startTile; t >= endTile; t -= 1) {
                 if (axisX) {
-                    // Sweeping along X → check Y span
+                    // Sweeping along X then check Y span
                     int minY = (int) Math.floor(posY - half);
                     int maxY = (int) Math.floor(posY + half);
                     for (int y = minY; y <= maxY; y++) {
@@ -1678,7 +1732,7 @@ public class Engine implements Screen {
                             return (t + 1 + half) + COLLISION_EPSILON;                        }
                     }
                 } else {
-                    // Sweeping along Y → check X span
+                    // Sweeping along Y then check X span
                     int minX = (int) Math.floor(posX - half);
                     int maxX = (int) Math.floor(posX + half);
                     for (int x = minX; x <= maxX; x++) {

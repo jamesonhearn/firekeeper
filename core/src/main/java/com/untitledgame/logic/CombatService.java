@@ -25,7 +25,15 @@ public class CombatService {
     public interface ParryChecker {
         boolean isParrying(Entity target);
     }
+
+    public interface DodgeChecker {
+        boolean shouldDodge(Entity target, Entity source);
+    }
+
+
+
     private ParryChecker parryChecker;
+    private DodgeChecker dodgeChecker;
     private DamageListener damageListener;
     public void register(Entity entity) {
         if (entity != null) {
@@ -41,6 +49,9 @@ public class CombatService {
         this.damageListener = listener;
     }
 
+    public void setDodgeChecker(DodgeChecker checker) {
+        this.dodgeChecker = checker;
+    }
     public void queueDamage(Entity target, Entity source, int amount) {
         if (target == null || target.health() == null) {
             return;
@@ -67,6 +78,7 @@ public class CombatService {
             }
             return;
         }
+
         target.setStagger(NPC_STAGGER_MS);
     }
 
@@ -109,6 +121,18 @@ public class CombatService {
             }
             return;
         }
+
+        // Check if target should dodge (only if not already invulnerable)
+        if (dodgeChecker != null && !health.isInvulnerable()
+                && dodgeChecker.shouldDodge(event.target(), event.source())) {
+            // Dodge successful! Negate damage
+            // Notify listener that dodge occurred (0 applied damage)
+            if (damageListener != null) {
+                damageListener.onDamageApplied(event.target(), event.source(), event.amount(), 0);
+            }
+            return;
+        }
+
         int applied = health.damage(event.amount(), event.target());
         if (applied > 0) {
             if (health.isDepleted()) {

@@ -29,6 +29,17 @@ public class Npc extends Entity {
 
     private static final int SEEK_LIMIT = 15;
 
+
+    // Dodge state tracking
+    private boolean dodging = false;
+    private int dodgeAnimationTicks = 0;
+    private Direction dodgeDirection = Direction.DOWN;
+    private static final int DODGE_ANIMATION_DURATION_TICKS = 12; // Duration of dodge roll
+    private static final double DODGE_SPEED = 8.0; // Speed multiplier during dodge
+    public static final double DODGE_PROBABILITY = 0.30; // 30% chance to dodge attacks
+
+
+
     // Centralized animation system using shared timing constants
     private final AnimationController animationController;
 
@@ -110,6 +121,10 @@ public class Npc extends Entity {
     }
 
 
+    public boolean isDodging() {
+        return dodging;
+    }
+
     public int getAttackAnimationTicks() {
         return attackAnimationTicks;
     }
@@ -118,6 +133,22 @@ public class Npc extends Entity {
      */
     public void tick(WorldView view) {
         moveTick += 1;
+        if (dodging) {
+            dodgeAnimationTicks++;
+
+            // Keep moving in dodge direction
+            double dx = dodgeDirection.getDx();
+            double dy = dodgeDirection.getDy();
+            setVelocity(dx * DODGE_SPEED, dy * DODGE_SPEED);
+
+            // Check if dodge animation is complete
+            if (dodgeAnimationTicks >= DODGE_ANIMATION_DURATION_TICKS) {
+                dodging = false;
+                dodgeAnimationTicks = 0;
+                setVelocity(0.0, 0.0);
+            }
+            return;
+        }
 
         if (isStaggered()) {
             // Halt movement and attacks while staggered
@@ -219,7 +250,12 @@ public class Npc extends Entity {
     public void updateAnimation(float deltaSeconds) {
         // Determine animation type based on state and velocity (not waypoints)
         AnimationType desiredType = AnimationType.IDLE;
-        if (isStaggered()) {
+        if (dodging) {
+            boolean b = Math.random() <= 0.5;
+            if (b) {
+                desiredType = AnimationType.DODGE1;
+            } else desiredType = AnimationType.DODGE2;
+        } else if (isStaggered()) {
             desiredType = AnimationType.TAKE_DAMAGE;
         } else if (attacking) {
             desiredType = AnimationType.ATTACK;
@@ -253,7 +289,30 @@ public class Npc extends Entity {
     public boolean canAttack() {
         return !attacking && attackCooldownTicks == 0;
     }
-    
+
+
+    /**
+     * Trigger a dodge roll in the specified direction.
+     * @param direction The direction to dodge in
+     */
+    public void triggerDodge(Direction direction) {
+        if (direction == null) {
+            // Default to facing direction if null
+            direction = this.facing;
+        }
+        dodging = true;
+        dodgeAnimationTicks = 0;
+        dodgeDirection = direction;
+        facing = direction;
+        // Cancel any ongoing attack animation but preserve cooldown
+        attacking = false;
+        attackAnimationTicks = 0;
+        damageQueuedThisAttack = false;
+        // Preserve attackCooldownTicks - don't reset to 0
+    }
+
+
+
     /**
      * Get the current attack cooldown in ticks.
      */

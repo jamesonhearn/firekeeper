@@ -17,6 +17,7 @@ public class AnimationFactory {
     private static final int ATTACK_TICKS = 1;
     private static final int DEATH_TICKS = 2;
     private static final int IDLE_TICKS = 1;
+    private static final int DODGE_TICKS = 1;
 
     /**
      * Create an AnimationController for the player avatar.
@@ -69,6 +70,9 @@ public class AnimationFactory {
         // Register TAKE_DAMAGE animations
         registerNpcAnimation(controller, atlas, AnimationType.TAKE_DAMAGE, "takedamage", ATTACK_TICKS, Animation.PlayMode.NORMAL);
 
+        // Register DODGE animations (Rolling spritesheet)
+        registerNpcAnimation(controller, atlas, AnimationType.DODGE1, "rolling", DODGE_TICKS, Animation.PlayMode.NORMAL);
+        registerNpcAnimation(controller, atlas, AnimationType.DODGE2, "slide", DODGE_TICKS, Animation.PlayMode.NORMAL);
 
         // Register DEATH animations
         registerNpcAnimation(controller, atlas, AnimationType.DEATH, "die", DEATH_TICKS, Animation.PlayMode.NORMAL);

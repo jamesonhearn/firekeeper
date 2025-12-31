@@ -66,6 +66,7 @@ public class Engine implements Screen {
     private final Renderer renderer = new Renderer();
     private TileType[][] world;
     private long worldSeed;
+    private int currentLevel;
     private Avatar avatar;
     private TextureRegion avatarSprite;
     private StringBuilder history;
@@ -198,7 +199,7 @@ public class Engine implements Screen {
     private static final int AVATAR_ATTACK_DAMAGE = 1;
     private static final int AVATAR_DEATH_TICKS = Math.max(1, (int) Math.round(80.0 / TICK_MS));
     private static final int AVATAR_BLOCK_TICKS = Math.max(1, (int) Math.round(60.0 / TICK_MS));
-    private static final double PARRY_WINDOW_MS = 300.0; // 300ms window to parry after activation
+    private static final double PARRY_WINDOW_MS = 200.0; // 300ms window to parry after activation
 
 
     private final EnumMap<AvatarAction, EnumMap<Direction, Animation<TextureRegion>>> avatarAnimations =
@@ -236,14 +237,13 @@ public class Engine implements Screen {
 
     private static final long NPC_SEED_SALT = 0x9e3779b97f4a7c15L;
 
-    private enum EnginePhase { MENU, SEED_ENTRY, PLAYING }
+    private enum EnginePhase { MENU, PLAYING }
 
 
     // Added smoothing to animations
     private double drawX = 0, drawY = 0;
     private double tickAccumulatorMs = 0.0;
     private EnginePhase phase = EnginePhase.MENU;
-    private final StringBuilder seedBuilder = new StringBuilder();
     private boolean menuMusicStarted = false;
     private boolean gameplayMusicStarted = false;
     private boolean awaitingQuitCommand = false;
@@ -283,6 +283,7 @@ public class Engine implements Screen {
         world = null;
         worldSeed = 0L;
         avatar = null;
+        currentLevel = 1;
         history = new StringBuilder();
         npcManager = null;
         npcSeed = 0L;
@@ -463,15 +464,7 @@ public class Engine implements Screen {
         if (screenOverlay == null) {
             return;
         }
-        screenOverlay.renderCentered("FIREKEEPER", new String[]{"N - New World", "L - Load", "Q - Quit"});
-    }
-
-    private void renderSeedPrompt() {
-        renderer.clearScreen();
-        if (screenOverlay == null) {
-            return;
-        }
-        screenOverlay.renderCentered("Enter Seed, then press S", new String[]{seedBuilder.toString()});
+        screenOverlay.renderCentered("FIREKEEPER", new String[]{"N - New Game", "L - Load", "Q - Quit"});
     }
 
 
@@ -532,19 +525,19 @@ public class Engine implements Screen {
             return;
         }
         screenOverlay.renderCentered("Your light has been extinguished",
-                new String[]{"N - New World", "L - Load", "Q - Quit"});
+                new String[]{"N - New Game", "L - Load", "Q - Quit"});
     }
 
     private void drawEndOverlay() {
         if (screenOverlay == null) {
             return;
         }
-        screenOverlay.renderCentered("The lightkeeper has escaped.",
+        screenOverlay.renderCentered("Level " + currentLevel + " Complete!",
                 new String[]{
-                        "Escape time: " + formatDuration(finalPlayTimeMs),
+                        "Time: " + formatDuration(finalPlayTimeMs),
                         "Enemies felled: " + enemiesFelled,
                         "Damage taken: " + totalDamageTaken,
-                        "N: Play Again",
+                        "N: Next Level",
                         "Q: Quit"
                 });
     }
@@ -1082,6 +1075,7 @@ public class Engine implements Screen {
     // Generator func via seed - drop player
     private void startNewWorld(long seed) {
         worldSeed = seed;
+        currentLevel = 1;
         sessionStartMs = System.currentTimeMillis();
         accumulatedPlayTimeMs = 0L;
         finalPlayTimeMs = 0L;
@@ -1099,6 +1093,14 @@ public class Engine implements Screen {
         // give initial items and random spawn ground loot
         seedInitialInventory();
         seedDroppedItems(new Random(seed));
+    }
+
+
+    // Start a new game with random seed
+    private void startNewGame() {
+        long randomSeed = new Random().nextLong();
+        startNewWorld(randomSeed);
+        beginGameplay();
     }
 
     // Find first coordiate that is valid placement for player on spawn - just seeks from bottom right currently
@@ -1853,7 +1855,7 @@ public class Engine implements Screen {
                 exitGame();
             }
             if (c == 'n') {
-                startNewGameFromEnd();
+                startNextLevel();
                 return;
             }
         }
@@ -1861,12 +1863,61 @@ public class Engine implements Screen {
 
     private void startNewGameFromDeath() {
         reset();
-        beginSeedEntry();
+        startNewGame();
     }
-    private void startNewGameFromEnd() {
-        reset();
-        beginSeedEntry();
+
+    private void startNextLevel() {
+        // Preserve state across levels
+        Inventory previousInventory = inventory;
+        int previousLevel = currentLevel;
+        int previousEnemiesFelled = enemiesFelled;
+        int previousDamageTaken = totalDamageTaken;
+        int previousDamageGiven = totalDamageGiven;
+        long previousPlayTime = finalPlayTimeMs;
+
+        // Generate next level with derived seed based on current level
+        currentLevel = previousLevel + 1;
+        // Use XOR with level number for better randomization between levels
+        worldSeed = worldSeed ^ (currentLevel * 0x9e3779b97f4a7c15L);
+
+        // Clear level-specific state but preserve player progress
+        world = null;
+        avatar = null;
+        npcManager = null;
+        droppedItems = new ArrayList<>();
+        gameState = GameState.PLAYING;
+        endFadeStartRadius = BASE_LIGHT_RADIUS;
+        endFadeStartMs = -1L;
+
+        // Restore preserved state
+        inventory = previousInventory;
+        enemiesFelled = previousEnemiesFelled;
+        totalDamageTaken = previousDamageTaken;
+        totalDamageGiven = previousDamageGiven;
+        accumulatedPlayTimeMs = previousPlayTime;
+        sessionStartMs = System.currentTimeMillis();
+
+        // Generate new world
+        World generator = new World(worldSeed);
+        world = generator.generate();
+        resetLighting();
+        decayingLightRadius = MAX_LIGHT_RADIUS;
+        lastDecayTime = System.currentTimeMillis();
+        renderer.setLightRadius(decayingLightRadius);
+        placeAvatar();
+
+        // Spawn NPCs for new level
+        npcSeed = worldSeed ^ NPC_SEED_SALT;
+        npcManager = new NpcManager(new Random(npcSeed), combatService, atlas);
+        npcManager.setDeathHandler(this::handleNpcDeath);
+        npcManager.spawn(world, avatar.x(), avatar.y());
+
+        // Seed new dropped items
+        seedDroppedItems(new Random(worldSeed));
+
+        beginGameplay();
     }
+
 
     private class InputState implements InputProcessor {
         @Override
@@ -1994,7 +2045,7 @@ public class Engine implements Screen {
         reset();
         boolean loaded = loadGame();
         if (!loaded || world == null) {
-            beginSeedEntry();
+            startNewGame();
             return;
         }
         beginGameplay();
@@ -2192,6 +2243,7 @@ public class Engine implements Screen {
         SaveState.SaveSnapshot snap = new SaveState.SaveSnapshot(
                 worldSeed,
                 npcSeed,
+                currentLevel,
                 avatar,
                 decayingLightRadius,
                 lastDecayTime,
@@ -2385,11 +2437,6 @@ public class Engine implements Screen {
             return;
         }
 
-        if (phase == EnginePhase.SEED_ENTRY) {
-            updateSeedEntry();
-            return;
-        }
-
         updateGameplay(deltaSeconds);
     }
 
@@ -2407,33 +2454,14 @@ public class Engine implements Screen {
             if (c == 'l') {
                 boolean loaded = loadGame();
                 if (!loaded || world == null) {
-                    beginSeedEntry();
+                    startNewGame();
                 } else {
                     beginGameplay();
                 }
                 return;
             }
             if (c == 'n') {
-                beginSeedEntry();
-                return;
-            }
-        }
-    }
-
-    private void updateSeedEntry() {
-        while (hasNextKeyTyped()) {
-            char c = nextKeyTyped();
-            if (c == 'S' || c == 's') {
-                history.append('n').append(seedBuilder).append('s');
-                startNewWorld(parseSeed(seedBuilder.toString()));
-                beginGameplay();
-                return;
-            }
-            if (Character.isDigit(c)) {
-                seedBuilder.append(c);
-            }
-            if (c == 'q' || c == 'Q') {
-                exitGame();
+                startNewGame();
                 return;
             }
         }
@@ -2513,10 +2541,6 @@ public class Engine implements Screen {
             showMainMenu();
             return;
         }
-        if (phase == EnginePhase.SEED_ENTRY) {
-            renderSeedPrompt();
-            return;
-        }
         renderWithHud();
         if (gameState == GameState.PAUSED) {
             drawPauseOverlay();
@@ -2529,11 +2553,6 @@ public class Engine implements Screen {
         }
         screenOverlay.renderCentered("Paused", new String[]{"Press ESC to Resume"});
 
-    }
-
-    private void beginSeedEntry() {
-        seedBuilder.setLength(0);
-        phase = EnginePhase.SEED_ENTRY;
     }
 
     private void beginGameplay() {

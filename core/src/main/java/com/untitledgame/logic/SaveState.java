@@ -15,6 +15,7 @@ import java.util.List;
 public record SaveState(
         long worldSeed,
         long npcSeed,
+        int currentLevel,
         AvatarState avatar,
         double decayingLightRadius,
         long lastDecayTime,
@@ -55,6 +56,7 @@ public record SaveState(
 
     public record SaveSnapshot(long worldSeed,
                                long npcSeed,
+                               int currentLevel,
                                Avatar avatar,
                                double decayingLightRadius,
                                long lastDecayTime,
@@ -126,6 +128,7 @@ public record SaveState(
         return new SaveState(
                 snap.worldSeed(),
                 snap.npcSeed(),
+                snap.currentLevel(),
                 avatarState,
                 snap.decayingLightRadius(),
                 snap.lastDecayTime(),

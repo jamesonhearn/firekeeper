@@ -13,7 +13,7 @@ public class AudioPlayer {
     private final AssetManager assets;
     private final List<String> effectPaths = new ArrayList<>();
     private final Random random = new Random();
-    private float soundVolume = 0.2f;
+    private float soundVolume = 0.5f;
     private float musicVolume = 0.1f;
     private boolean muted = false;
     private Music currentMusic;

@@ -12,6 +12,8 @@ public class Entity {
     protected Direction facing = Direction.DOWN;
     protected double velocityX = 0.0;
     protected double velocityY = 0.0;
+    private double staggerRemainingMs = 0.0;
+    private boolean staggered = false;
     protected HealthComponent health;
 
     public Entity(int x, int y) {
@@ -75,5 +77,45 @@ public class Entity {
 
         return health;
     }
+
+
+    public double staggerRemainingMs() {
+        return staggerRemainingMs;
+    }
+
+    public boolean isStaggered() {
+        return staggered;
+    }
+
+    public void setStagger(double durationMs) {
+        if (durationMs <= 0) {
+            return;
+        }
+        staggerRemainingMs = Math.max(staggerRemainingMs, durationMs);
+        staggered = true;
+        onStaggered();
+    }
+
+    public void clearStagger() {
+        staggerRemainingMs = 0.0;
+        staggered = false;
+    }
+
+    public void tickStagger(double deltaSeconds) {
+        if (staggerRemainingMs <= 0.0) {
+            staggerRemainingMs = 0.0;
+            staggered = false;
+            return;
+        }
+        staggerRemainingMs = Math.max(0.0, staggerRemainingMs - deltaSeconds * 1000.0);
+        if (staggerRemainingMs <= 0.0) {
+            staggered = false;
+        }
+    }
+
+    protected void onStaggered() {
+        setVelocity(0.0, 0.0);
+    }
+
     public record Position(int x, int y) { }
 }

@@ -4,6 +4,7 @@ import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
+import com.untitledgame.logic.npc.Npc;
 
 /**
  * central controller for combat - entities enqueue damage and the
@@ -14,6 +15,8 @@ public class CombatService {
 
     private final Queue<DamageEvent> damageEvents = new ArrayDeque<>();
     private final Set<Entity> trackedEntities = new HashSet<>();
+    private static final double AVATAR_STAGGER_MS = 350.0;
+    private static final double NPC_STAGGER_MS = 400.0;
     public interface DamageListener {
         void onDamageApplied(Entity target, Entity source, int attemptedAmount, int appliedAmount);
     }
@@ -38,6 +41,25 @@ public class CombatService {
             return;
         }
         damageEvents.add(new DamageEvent(target, source, Math.max(0, amount)));
+    }
+
+    private void applyStagger(Entity target) {
+        if (target == null) {
+            return;
+        }
+        if (target instanceof Avatar avatarTarget) {
+            if (avatarTarget.health() != null && !avatarTarget.health().isDepleted()) {
+                avatarTarget.setStagger(AVATAR_STAGGER_MS);
+            }
+            return;
+        }
+        if (target instanceof Npc npcTarget) {
+            if (npcTarget.health() != null && !npcTarget.health().isDepleted()) {
+                npcTarget.setStagger(NPC_STAGGER_MS);
+            }
+            return;
+        }
+        target.setStagger(NPC_STAGGER_MS);
     }
 
     /**
@@ -66,6 +88,13 @@ public class CombatService {
             return;
         }
         int applied = health.damage(event.amount(), event.target());
+        if (applied > 0) {
+            if (health.isDepleted()) {
+                event.target().clearStagger();
+            } else {
+                applyStagger(event.target());
+            }
+        }
         if (damageListener != null) {
             damageListener.onDamageApplied(event.target(), event.source(), event.amount(), applied);
         }

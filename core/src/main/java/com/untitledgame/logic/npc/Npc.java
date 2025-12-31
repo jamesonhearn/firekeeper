@@ -115,6 +115,15 @@ public class Npc extends Entity {
     public void tick(WorldView view) {
         moveTick += 1;
 
+        if (isStaggered()) {
+            // Halt movement and attacks while staggered
+            attacking = false;
+            attackAnimationTicks = 0;
+            damageQueuedThisAttack = false;
+            setVelocity(0.0, 0.0);
+            return;
+        }
+
         State desiredState = selectState(view);
         // Don't change state during an active attack animation
         if (attacking && state == State.ATTACK) {
@@ -206,7 +215,9 @@ public class Npc extends Entity {
     public void updateAnimation(float deltaSeconds) {
         // Determine animation type based on state and velocity (not waypoints)
         AnimationType desiredType = AnimationType.IDLE;
-        if (attacking) {
+        if (isStaggered()) {
+            desiredType = AnimationType.TAKE_DAMAGE;
+        } else if (attacking) {
             desiredType = AnimationType.ATTACK;
         } else if (Math.abs(velocityX) > 1e-6 || Math.abs(velocityY) > 1e-6) {
             // Moving - use walk animation based on velocity magnitude

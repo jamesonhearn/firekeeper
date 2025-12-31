@@ -104,6 +104,10 @@ public class Engine implements Screen {
     private static final long END_FADE_DURATION_MS = 3_000L;
     private long lightSurgeStartMs = -1L;
 
+    private static final long FOOTSTEP_INTERVAL_MS = 400; // 0.5 seconds
+    private long lastFootstepTime = 0;
+
+
     private boolean lightToggle = true;
 
     // AUDIO STUFF
@@ -903,8 +907,23 @@ public class Engine implements Screen {
         }
         return moved;
     }
+
+
+    private void tryPlayFootstep() {
+        long now = System.currentTimeMillis();
+        if (now - lastFootstepTime >= FOOTSTEP_INTERVAL_MS) {
+            music.playRandomEffect();
+            lastFootstepTime = now;
+        }
+    }
+
     private boolean handleMovementRealtime(boolean record, double deltaSeconds) {
         if (avatar == null || world == null || gameState != GameState.PLAYING) {
+            return false;
+        }
+        if (avatar.isStaggered()) {
+            avatar.setVelocity(0.0, 0.0);
+            currentDirection = 0;
             return false;
         }
         boolean w = wDown;
@@ -962,7 +981,7 @@ public class Engine implements Screen {
         prevShiftDown = shiftDown;
 
         if (movedThisFrame) {
-            music.playRandomEffect();
+            tryPlayFootstep();
             pickupAtAvatar();
         }
 
@@ -1106,7 +1125,7 @@ public class Engine implements Screen {
         damagedEntitiesThisAttack.clear();
     }
     private void startDash(Direction preferredFacing) {
-        if (avatar == null || dashInProgress) {
+        if (avatar == null || dashInProgress || avatar.isStaggered()) {
             return;
         }
         Direction dashFacing = preferredFacing != null ? preferredFacing : resolveFacingForAction(null);
@@ -1120,7 +1139,7 @@ public class Engine implements Screen {
     }
 
     private boolean updateDashMovement(double deltaSeconds) {
-        if (avatar == null || !dashInProgress) {
+        if (avatar == null || attackInProgress || avatar.isStaggered()) {
             return false;
         }
         double startX = avatar.posX();
@@ -1199,6 +1218,13 @@ public class Engine implements Screen {
                 Tileset.AVATAR_DEATH_UP_RIGHT, Tileset.AVATAR_DEATH_UP_LEFT,
                 Tileset.AVATAR_DEATH_DOWN_RIGHT, Tileset.AVATAR_DEATH_DOWN_LEFT,
                 frameDurationSeconds(AVATAR_DEATH_TICKS),
+                Animation.PlayMode.NORMAL));
+        avatarAnimations.put(AvatarAction.TAKE_DAMAGE, buildAvatarAnimations8Dir(
+                Tileset.AVATAR_TAKE_DAMAGE_UP, Tileset.AVATAR_TAKE_DAMAGE_DOWN,
+                Tileset.AVATAR_TAKE_DAMAGE_LEFT, Tileset.AVATAR_TAKE_DAMAGE_RIGHT,
+                Tileset.AVATAR_TAKE_DAMAGE_UP_RIGHT, Tileset.AVATAR_TAKE_DAMAGE_UP_LEFT,
+                Tileset.AVATAR_TAKE_DAMAGE_DOWN_RIGHT, Tileset.AVATAR_TAKE_DAMAGE_DOWN_LEFT,
+                frameDurationSeconds(AVATAR_ATTACK_TICKS),
                 Animation.PlayMode.NORMAL));
 
         avatarAction = AvatarAction.IDLE;
@@ -1503,6 +1529,7 @@ public class Engine implements Screen {
         }
         others.addAll(npcs);
         for (Npc npc : npcs) {
+            npc.tickStagger(deltaSeconds);
             // AI is fully responsible for setting velocity
             npc.updateAnimation((float) deltaSeconds);
             integrateEntityMotion(npc, deltaSeconds, others);
@@ -1946,15 +1973,20 @@ public class Engine implements Screen {
             facing = getMovementBasedFacing();
         }
 
-        AvatarAction desiredAction = (gameState == GameState.PLAYING)
-                ? (attackInProgress
-                ? AvatarAction.ATTACK
-                : (dashInProgress
-                ? AvatarAction.RUN
-                : (currentDirection == 0)
-                ? AvatarAction.IDLE
-                : AvatarAction.WALK))
-                : AvatarAction.DEATH;
+        AvatarAction desiredAction;
+        if (gameState != GameState.PLAYING) {
+            desiredAction = AvatarAction.DEATH;
+        } else if (avatar != null && avatar.isStaggered()) {
+            desiredAction = AvatarAction.TAKE_DAMAGE;
+        } else if (attackInProgress) {
+            desiredAction = AvatarAction.ATTACK;
+        } else if (dashInProgress) {
+            desiredAction = AvatarAction.RUN;
+        } else if (currentDirection == 0) {
+            desiredAction = AvatarAction.IDLE;
+        } else {
+            desiredAction = AvatarAction.WALK;
+        }
 
         EnumMap<Direction, Animation<TextureRegion>> byDirection = avatarAnimations.get(desiredAction);
         Animation<TextureRegion> selected = byDirection.get(facing);
@@ -1969,6 +2001,10 @@ public class Engine implements Screen {
                 attackQueued = false;
                 attackInProgress = true;
                 avatarStateTime = 0f;
+            } else if (desiredAction == AvatarAction.TAKE_DAMAGE) {
+                attackInProgress = false;
+                attackQueued = false;
+                avatarStateTime = 0f;
             } else {
                 avatarStateTime = carryStateTime(avatarAnimation, selected, avatarStateTime);
             }
@@ -1978,7 +2014,9 @@ public class Engine implements Screen {
         avatarAction = desiredAction;
         avatarAnimation = selected;
 
-        boolean looping = avatarAction != AvatarAction.ATTACK && avatarAction != AvatarAction.DEATH;
+        boolean looping = avatarAction != AvatarAction.ATTACK
+                && avatarAction != AvatarAction.DEATH
+                && avatarAction != AvatarAction.TAKE_DAMAGE;
         boolean shouldAdvance = looping || movedThisTick || avatarAnimation.getKeyFrames().length > 1;
         if (shouldAdvance) {
             avatarStateTime += deltaSeconds;
@@ -2057,7 +2095,7 @@ public class Engine implements Screen {
             if (!(raw instanceof SaveState saved)) {
                 return false;
             }
-            restoreFromState(saved);
+            //restoreFromState(saved);
             return true;
         } catch (IOException | ClassNotFoundException e) {
             return false;
@@ -2092,92 +2130,94 @@ public class Engine implements Screen {
             // Best-effort; ignore failures to keep gameplay responsive
         }
     }
-
-    private void restoreFromState(SaveState state) {
-        reset();
-        worldSeed = state.worldSeed();
-        npcSeed = state.npcSeed();
-        accumulatedPlayTimeMs = state.playTimeMs();
-        finalPlayTimeMs = 0L;
-        sessionStartMs = System.currentTimeMillis();
-        enemiesFelled = state.enemiesFelled();
-        totalDamageTaken = state.damageTaken();
-        totalDamageGiven = state.damageGiven();
-        World generator = new World(worldSeed);
-        world = generator.generate();
-        decayingLightRadius = state.decayingLightRadius();
-        lastDecayTime = state.lastDecayTime();
-        lightSurgeStartMs = state.lightSurgeStartMs();
-        renderer.setLightRadius(decayingLightRadius);
-
-        avatar = buildAvatar(state.avatar());
-        initializeAvatarAnimations(directionFromChar(lastFacing));
-        drawX = avatar.posX() - 0.5;
-        drawY = avatar.posY() - 0.5;
-
-        inventory = rebuildInventory(state.inventory());
-        droppedItems = rebuildDroppedItems(state.droppedItems());
-
-        npcManager = new NpcManager(new Random(npcSeed), combatService, atlas);
-        npcManager.setDeathHandler(this::handleNpcDeath);
-        npcManager.restoreState(rebuildNpcs(state.npcs()), rebuildCorpses(state.corpses()));
-    }
-
-    private Avatar buildAvatar(SaveState.AvatarState avatarState) {
-        SaveState.HealthState healthState = avatarState.health();
-        HealthComponent health = new HealthComponent(healthState.current(), healthState.max(),
-                healthState.armor(), healthState.invulnerabilityFrames());
-        health.setInvulnerabilityRemaining(healthState.invulnerabilityRemaining());
-        health.addDeathCallback(this::handleAvatarDeath);
-        Avatar built = new Avatar(avatarState.x(), avatarState.y(), avatarState.lives(), health);
-        built.setSpawnPoint(new Entity.Position(avatarState.spawnX(), avatarState.spawnY()));
-        combatService.register(built);
-        lastFacing = directionToChar(Direction.DOWN);
-        return built;
-    }
-
-    private Inventory rebuildInventory(SaveState.InventoryState inventoryState) {
-        Inventory rebuilt = new Inventory(inventoryState.slots());
-        for (SaveState.ItemStackState stack : inventoryState.stacks()) {
-            Item item = ItemRegistry.byId(stack.itemId());
-            if (item != null) {
-                rebuilt.add(item, stack.quantity());
-            }
-        }
-        return rebuilt;
-    }
-
-    private List<DroppedItem> rebuildDroppedItems(List<SaveState.DroppedItemState> states) {
-        List<DroppedItem> drops = new ArrayList<>();
-        for (SaveState.DroppedItemState drop : states) {
-            Item item = ItemRegistry.byId(drop.itemId());
-            if (item != null) {
-                drops.add(new DroppedItem(item, drop.quantity(), drop.x(), drop.y()));
-            }
-        }
-        return drops;
-    }
-
-    private List<Npc> rebuildNpcs(List<SaveState.NpcState> states) {
-        List<Npc> npcs = new ArrayList<>();
-        for (SaveState.NpcState state : states) {
-            SaveState.HealthState healthState = state.health();
-            HealthComponent health = new HealthComponent(healthState.current(), healthState.max(),
-                    healthState.armor(), healthState.invulnerabilityFrames());
-            health.setInvulnerabilityRemaining(healthState.invulnerabilityRemaining());
-
-            // Create animation controller with all animation types
-            com.untitledgame.animation.AnimationController animationController =
-                    com.untitledgame.animation.AnimationFactory.createNpcController(atlas, state.variant());
-
-            Npc npc = new Npc(state.x(), state.y(), new Random(state.rngSeed()), state.rngSeed(), state.variant(),
-                    animationController, health);
-            npc.setDrawX(state.drawX());
-            npc.setDrawY(state.drawY());
-            npcs.add(npc);
-        }
-        return npcs;
-    }
+//
+//    private void restoreFromState(SaveState state) {
+//        reset();
+//        worldSeed = state.worldSeed();
+//        npcSeed = state.npcSeed();
+//        accumulatedPlayTimeMs = state.playTimeMs();
+//        finalPlayTimeMs = 0L;
+//        sessionStartMs = System.currentTimeMillis();
+//        enemiesFelled = state.enemiesFelled();
+//        totalDamageTaken = state.damageTaken();
+//        totalDamageGiven = state.damageGiven();
+//        World generator = new World(worldSeed);
+//        world = generator.generate();
+//        decayingLightRadius = state.decayingLightRadius();
+//        lastDecayTime = state.lastDecayTime();
+//        lightSurgeStartMs = state.lightSurgeStartMs();
+//        renderer.setLightRadius(decayingLightRadius);
+//
+//        avatar = buildAvatar(state.avatar());
+//        initializeAvatarAnimations(directionFromChar(lastFacing));
+//        drawX = avatar.posX() - 0.5;
+//        drawY = avatar.posY() - 0.5;
+//
+//        inventory = rebuildInventory(state.inventory());
+//        droppedItems = rebuildDroppedItems(state.droppedItems());
+//
+//        npcManager = new NpcManager(new Random(npcSeed), combatService, atlas);
+//        npcManager.setDeathHandler(this::handleNpcDeath);
+//        npcManager.restoreState(rebuildNpcs(state.npcs()), rebuildCorpses(state.corpses()));
+//    }
+//
+//    private Avatar buildAvatar(SaveState.AvatarState avatarState) {
+//        SaveState.HealthState healthState = avatarState.health();
+//        HealthComponent health = new HealthComponent(healthState.current(), healthState.max(),
+//                healthState.armor(), healthState.invulnerabilityFrames());
+//        health.setInvulnerabilityRemaining(healthState.invulnerabilityRemaining());
+//        health.addDeathCallback(this::handleAvatarDeath);
+//        Avatar built = new Avatar(avatarState.x(), avatarState.y(), avatarState.lives(), health);
+//        built.setSpawnPoint(new Entity.Position(avatarState.spawnX(), avatarState.spawnY()));
+//        built.setStagger(avatarState.staggerMs());
+//        combatService.register(built);
+//        lastFacing = directionToChar(Direction.DOWN);
+//        return built;
+//    }
+//
+//    private Inventory rebuildInventory(SaveState.InventoryState inventoryState) {
+//        Inventory rebuilt = new Inventory(inventoryState.slots());
+//        for (SaveState.ItemStackState stack : inventoryState.stacks()) {
+//            Item item = ItemRegistry.byId(stack.itemId());
+//            if (item != null) {
+//                rebuilt.add(item, stack.quantity());
+//            }
+//        }
+//        return rebuilt;
+//    }
+//
+//    private List<DroppedItem> rebuildDroppedItems(List<SaveState.DroppedItemState> states) {
+//        List<DroppedItem> drops = new ArrayList<>();
+//        for (SaveState.DroppedItemState drop : states) {
+//            Item item = ItemRegistry.byId(drop.itemId());
+//            if (item != null) {
+//                drops.add(new DroppedItem(item, drop.quantity(), drop.x(), drop.y()));
+//            }
+//        }
+//        return drops;
+//    }
+//
+//    private List<Npc> rebuildNpcs(List<SaveState.NpcState> states) {
+//        List<Npc> npcs = new ArrayList<>();
+//        for (SaveState.NpcState state : states) {
+//            SaveState.HealthState healthState = state.health();
+//            HealthComponent health = new HealthComponent(healthState.current(), healthState.max(),
+//                    healthState.armor(), healthState.invulnerabilityFrames());
+//            health.setInvulnerabilityRemaining(healthState.invulnerabilityRemaining());
+//
+//            // Create animation controller with all animation types
+//            com.untitledgame.animation.AnimationController animationController =
+//                    com.untitledgame.animation.AnimationFactory.createNpcController(atlas, state.variant());
+//
+//            Npc npc = new Npc(state.x(), state.y(), new Random(state.rngSeed()), state.rngSeed(), state.variant(),
+//                    animationController, health);
+//            npc.setDrawX(state.drawX());
+//            npc.setDrawY(state.drawY());
+//            npc.setStagger(state.staggerMs());
+//            npcs.add(npc);
+//        }
+//        return npcs;
+//    }
 
     private List<com.untitledgame.logic.npc.Corpse> rebuildCorpses(List<SaveState.CorpseState> states) {
         List<com.untitledgame.logic.npc.Corpse> corpses = new ArrayList<>();
@@ -2223,6 +2263,7 @@ public class Engine implements Screen {
         IDLE,
         WALK,
         RUN,
+        TAKE_DAMAGE,
         ATTACK,
         DEATH
     }
@@ -2315,6 +2356,16 @@ public class Engine implements Screen {
     }
 
     private void updateGameplay(double deltaSeconds) {
+        if (avatar != null) {
+            avatar.tickStagger(deltaSeconds);
+            if (avatar.isStaggered()) {
+                attackInProgress = false;
+                attackQueued = false;
+                dashInProgress = false;
+                dashDistanceRemaining = 0.0;
+                avatar.setVelocity(0.0, 0.0);
+            }
+        }
         boolean avatarMoved = handleMovementRealtime(true, deltaSeconds);
 
         tickAccumulatorMs += deltaSeconds * MS_PER_S;

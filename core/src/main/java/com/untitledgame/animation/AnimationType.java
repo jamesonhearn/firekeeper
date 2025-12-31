@@ -8,5 +8,6 @@ public enum AnimationType {
     WALK,
     RUN,
     ATTACK,
-    DEATH
+    DEATH,
+    TAKE_DAMAGE
 }

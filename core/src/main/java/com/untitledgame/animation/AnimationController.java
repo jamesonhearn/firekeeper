@@ -56,7 +56,8 @@ public class AnimationController {
         if (typeChanged) {
             // Reset state time for certain transitions
             // Reset when switching TO IDLE, ATTACK, or DEATH to start from frame 0
-            if (type == AnimationType.IDLE || type == AnimationType.ATTACK || type == AnimationType.DEATH) {
+            if (type == AnimationType.IDLE || type == AnimationType.ATTACK
+                    || type == AnimationType.DEATH || type == AnimationType.TAKE_DAMAGE) {
                 stateTime = 0f;
             } else {
                 // Carry over state time for smooth transitions (e.g., walk to run)

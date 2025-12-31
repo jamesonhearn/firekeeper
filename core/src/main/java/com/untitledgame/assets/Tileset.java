@@ -56,6 +56,24 @@ public final class Tileset {
     public static TextureRegion[] AVATAR_DEATH_DOWN_RIGHT;
     public static TextureRegion[] AVATAR_DEATH_DOWN_LEFT;
 
+    public static TextureRegion[] AVATAR_BLOCK_UP;
+    public static TextureRegion[] AVATAR_BLOCK_DOWN;
+    public static TextureRegion[] AVATAR_BLOCK_LEFT;
+    public static TextureRegion[] AVATAR_BLOCK_RIGHT;
+    public static TextureRegion[] AVATAR_BLOCK_UP_RIGHT;
+    public static TextureRegion[] AVATAR_BLOCK_UP_LEFT;
+    public static TextureRegion[] AVATAR_BLOCK_DOWN_RIGHT;
+    public static TextureRegion[] AVATAR_BLOCK_DOWN_LEFT;
+
+    public static TextureRegion[] AVATAR_TAKE_DAMAGE_UP;
+    public static TextureRegion[] AVATAR_TAKE_DAMAGE_DOWN;
+    public static TextureRegion[] AVATAR_TAKE_DAMAGE_LEFT;
+    public static TextureRegion[] AVATAR_TAKE_DAMAGE_RIGHT;
+    public static TextureRegion[] AVATAR_TAKE_DAMAGE_UP_RIGHT;
+    public static TextureRegion[] AVATAR_TAKE_DAMAGE_UP_LEFT;
+    public static TextureRegion[] AVATAR_TAKE_DAMAGE_DOWN_RIGHT;
+    public static TextureRegion[] AVATAR_TAKE_DAMAGE_DOWN_LEFT;
+
     private static TextureAtlas textureAtlas;
 
     private static boolean initialized;
@@ -69,7 +87,7 @@ public final class Tileset {
         FLOOR = tile(atlas, "tiles/skull_floor", "floor", 0);
         ELEVATOR = tile(atlas, "tiles/elevator", "elevator", 1);
         WALL_TOP = tile(atlas, "tiles/top_skull", "wall top", 2);
-        WALL_SIDE = tile(atlas, "tiles/cave_wall_base", "wall side", 3);
+        WALL_SIDE = tile(atlas, "tiles/side_skull", "wall side", 3);
         LEFT_WALL = tile(atlas, "tiles/cave_wall_left", "left wall", 4);
         RIGHT_WALL = tile(atlas, "tiles/cave_wall_right", "right wall", 5);
         FRONT_WALL_TOP = tile(atlas, "tiles/cave_wall_top", "front wall top", 6);
@@ -112,6 +130,25 @@ public final class Tileset {
         AVATAR_DEATH_DOWN_RIGHT = loadAnimationFrames(atlas, "player", "die", Direction.DOWN_RIGHT, 15);
         AVATAR_DEATH_DOWN_LEFT = loadAnimationFrames(atlas, "player", "die", Direction.DOWN_LEFT, 15);
 
+        // Block animations - all 8 directions
+        AVATAR_BLOCK_UP = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.UP, 15);
+        AVATAR_BLOCK_DOWN = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.DOWN, 15);
+        AVATAR_BLOCK_LEFT = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.LEFT, 15);
+        AVATAR_BLOCK_RIGHT = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.RIGHT, 15);
+        AVATAR_BLOCK_UP_RIGHT = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.UP_RIGHT, 15);
+        AVATAR_BLOCK_UP_LEFT = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.UP_LEFT, 15);
+        AVATAR_BLOCK_DOWN_RIGHT = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.DOWN_RIGHT, 15);
+        AVATAR_BLOCK_DOWN_LEFT = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.DOWN_LEFT, 15);
+
+        // Take damage animations - all 8 directions
+        AVATAR_TAKE_DAMAGE_UP = loadAnimationFrames(atlas, "player", "takedamage", Direction.UP, 15);
+        AVATAR_TAKE_DAMAGE_DOWN = loadAnimationFrames(atlas, "player", "takedamage", Direction.DOWN, 15);
+        AVATAR_TAKE_DAMAGE_LEFT = loadAnimationFrames(atlas, "player", "takedamage", Direction.LEFT, 15);
+        AVATAR_TAKE_DAMAGE_RIGHT = loadAnimationFrames(atlas, "player", "takedamage", Direction.RIGHT, 15);
+        AVATAR_TAKE_DAMAGE_UP_RIGHT = loadAnimationFrames(atlas, "player", "takedamage", Direction.UP_RIGHT, 15);
+        AVATAR_TAKE_DAMAGE_UP_LEFT = loadAnimationFrames(atlas, "player", "takedamage", Direction.UP_LEFT, 15);
+        AVATAR_TAKE_DAMAGE_DOWN_RIGHT = loadAnimationFrames(atlas, "player", "takedamage", Direction.DOWN_RIGHT, 15);
+        AVATAR_TAKE_DAMAGE_DOWN_LEFT = loadAnimationFrames(atlas, "player", "takedamage", Direction.DOWN_LEFT, 15);
         initialized = true;
     }
 

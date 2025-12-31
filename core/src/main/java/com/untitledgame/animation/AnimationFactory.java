@@ -41,7 +41,10 @@ public class AnimationFactory {
         
         // Register ATTACK animations
         registerPlayerAnimation(controller, atlas, AnimationType.ATTACK, "melee", ATTACK_TICKS, Animation.PlayMode.NORMAL);
-        
+
+        // Register TAKE_DAMAGE animations
+        registerNpcAnimation(controller, atlas, AnimationType.TAKE_DAMAGE, "takedamage", ATTACK_TICKS, Animation.PlayMode.NORMAL);
+
         // Register DEATH animations
         registerPlayerAnimation(controller, atlas, AnimationType.DEATH, "die", DEATH_TICKS, Animation.PlayMode.NORMAL);
         
@@ -68,7 +71,11 @@ public class AnimationFactory {
         // Register ATTACK animations (NPCs have attack1 and attack2, we'll use attack1)
         // Changed to LOOP mode to support attack cooldown system
         registerNpcAnimation(controller, atlas, AnimationType.ATTACK, "attack1", ATTACK_TICKS, Animation.PlayMode.LOOP);
-        
+
+        // Register TAKE_DAMAGE animations
+        registerPlayerAnimation(controller, atlas, AnimationType.TAKE_DAMAGE, "takedamage", ATTACK_TICKS, Animation.PlayMode.NORMAL);
+
+
         // Register DEATH animations
         registerNpcAnimation(controller, atlas, AnimationType.DEATH, "die", DEATH_TICKS, Animation.PlayMode.NORMAL);
         

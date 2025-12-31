@@ -1,4 +1,7 @@
-apply plugin: 'application'
+plugins {
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
 
 sourceCompatibility = 17
 
@@ -18,6 +21,11 @@ application {
 run {
     workingDir = project.projectDir
 }
+shadowJar {
+    archiveClassifier.set('')   // overwrites the default “-all” if you prefer a clean name
+    mergeServiceFiles()         // helps with service-loader metadata, common for LWJGL/GDX
+}
+
 sourceSets {
     main {
         resources.srcDirs += file('assets')

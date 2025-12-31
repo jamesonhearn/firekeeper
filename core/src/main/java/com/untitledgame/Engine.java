@@ -197,6 +197,8 @@ public class Engine implements Screen {
     private static final int AVATAR_ATTACK_TICKS = Math.max(1, (int) Math.round(60.0 / TICK_MS));
     private static final int AVATAR_ATTACK_DAMAGE = 1;
     private static final int AVATAR_DEATH_TICKS = Math.max(1, (int) Math.round(80.0 / TICK_MS));
+    private static final int AVATAR_BLOCK_TICKS = Math.max(1, (int) Math.round(60.0 / TICK_MS));
+    private static final double PARRY_WINDOW_MS = 300.0; // 300ms window to parry after activation
 
     private final EnumMap<AvatarAction, EnumMap<Direction, Animation<TextureRegion>>> avatarAnimations =
             new EnumMap<>(AvatarAction.class);
@@ -211,6 +213,15 @@ public class Engine implements Screen {
     private final Set<Entity> damagedEntitiesThisAttack = new HashSet<>();
     private final ArrayDeque<Character> typedKeys = new ArrayDeque<>();
     private final InputState inputState = new InputState();
+
+
+
+    // Parry system
+    private boolean parryDown = false;
+    private boolean prevParryDown = false;
+    private boolean parryInProgress = false;
+    private double parryWindowRemainingMs = 0.0;
+
 
 
     // Targeting system
@@ -279,6 +290,7 @@ public class Engine implements Screen {
         npcSeed = 0L;
         combatService = new CombatService();
         combatService.setDamageListener(this::recordDamageStats);
+        combatService.setParryChecker(this::isEntityParrying);
         avatarAnimations.clear();
         avatarAnimation = null;
         avatarAction = AvatarAction.IDLE;
@@ -299,6 +311,10 @@ public class Engine implements Screen {
         prevDDown = false;
         prevAttackDown = false;
         prevTabDown = false;
+        parryDown = false;
+        prevParryDown = false;
+        parryInProgress = false;
+        parryWindowRemainingMs = 0.0;
         dashInProgress = false;
         dashDistanceRemaining = 0.0;
         dashDirection.set(0f, 0f);
@@ -414,6 +430,7 @@ public class Engine implements Screen {
         playerConfig.addAnimation("idle", "Idle.png", 15);
         playerConfig.addAnimation("walk", "Walk.png", 15);
         playerConfig.addAnimation("melee", "Melee.png", 15);
+        playerConfig.addAnimation("block", "ShieldBlockMid.png", 15);
         playerConfig.addAnimation("melee2", "Melee2.png", 15);
         playerConfig.addAnimation("takedamage", "TakeDamage.png", 15);
         playerConfig.addAnimation("die", "Die.png", 15);
@@ -931,6 +948,7 @@ public class Engine implements Screen {
         boolean s = sDown;
         boolean d = dDown;
         boolean attack = attackDown;
+        boolean parry = parryDown;
         boolean dashPressed = shiftDown && !prevShiftDown;
 
         updateDirectionOnPress(w, a, s, d, prevWDown, prevADown, prevSDown, prevDDown);
@@ -956,7 +974,9 @@ public class Engine implements Screen {
         if (attack && !prevAttackDown) {
             startAttack(actionFacing);
         }
-
+        if (parry && !prevParryDown) {
+            startParry(actionFacing);
+        }
         boolean movedThisFrame;
         if (dashInProgress) {
             movedThisFrame = updateDashMovement(deltaSeconds);
@@ -978,6 +998,7 @@ public class Engine implements Screen {
         prevSDown = s;
         prevDDown = d;
         prevAttackDown = attack;
+        prevParryDown = parryDown;
         prevShiftDown = shiftDown;
 
         if (movedThisFrame) {
@@ -1109,7 +1130,7 @@ public class Engine implements Screen {
 
     // Depending on direction, update avatar position and rotate sprite animation frame
     private void startAttack(Direction facing) {
-        if (avatar == null || attackInProgress) {
+        if (avatar == null || attackInProgress || parryInProgress) {
             return;
         }
         Direction resolvedFacing = resolveFacingForAction(facing);
@@ -1124,6 +1145,35 @@ public class Engine implements Screen {
 
         damagedEntitiesThisAttack.clear();
     }
+
+
+    private void startParry(Direction facing) {
+        if (avatar == null || parryInProgress || attackInProgress || avatar.isStaggered()) {
+            return;
+        }
+        Direction resolvedFacing = resolveFacingForAction(facing);
+
+        // Check animations exist before setting state
+        EnumMap<Direction, Animation<TextureRegion>> blockAnimations = avatarAnimations.get(AvatarAction.BLOCK);
+        if (blockAnimations == null) {
+            return;
+        }
+        Animation<TextureRegion> blockCycle = blockAnimations.get(resolvedFacing);
+        if (blockCycle == null) {
+            return;
+        }
+
+        // Set parry state
+        parryInProgress = true;
+        parryWindowRemainingMs = PARRY_WINDOW_MS;
+        avatarStateTime = 0f;
+        avatarAnimation = blockCycle;
+        avatarAction = AvatarAction.BLOCK;
+        avatarSprite = blockCycle.getKeyFrame(avatarStateTime);
+    }
+
+
+
     private void startDash(Direction preferredFacing) {
         if (avatar == null || dashInProgress || avatar.isStaggered()) {
             return;
@@ -1226,6 +1276,13 @@ public class Engine implements Screen {
                 Tileset.AVATAR_TAKE_DAMAGE_DOWN_RIGHT, Tileset.AVATAR_TAKE_DAMAGE_DOWN_LEFT,
                 frameDurationSeconds(AVATAR_ATTACK_TICKS),
                 Animation.PlayMode.NORMAL));
+        avatarAnimations.put(AvatarAction.BLOCK, buildAvatarAnimations8Dir(
+                Tileset.AVATAR_BLOCK_UP, Tileset.AVATAR_BLOCK_DOWN,
+                Tileset.AVATAR_BLOCK_LEFT, Tileset.AVATAR_BLOCK_RIGHT,
+                Tileset.AVATAR_BLOCK_UP_RIGHT, Tileset.AVATAR_BLOCK_UP_LEFT,
+                Tileset.AVATAR_BLOCK_DOWN_RIGHT, Tileset.AVATAR_BLOCK_DOWN_LEFT,
+                frameDurationSeconds(AVATAR_BLOCK_TICKS),
+                Animation.PlayMode.LOOP));
 
         avatarAction = AvatarAction.IDLE;
         avatarAnimation = avatarAnimations.get(avatarAction).get(facing);
@@ -1479,6 +1536,16 @@ public class Engine implements Screen {
             totalDamageGiven += applied;
         }
     }
+
+    private boolean isEntityParrying(Entity target) {
+        // Only avatar can parry
+        if (target instanceof Avatar && avatar == target) {
+            return parryWindowRemainingMs > 0;
+        }
+        return false;
+    }
+
+
 
     private void checkForEndgame() {
         if (gameState != GameState.PLAYING || world == null || avatar == null) {
@@ -1883,7 +1950,10 @@ public class Engine implements Screen {
             if (button == Input.Buttons.LEFT) {
                 attackDown = true;
                 return true;
-            }
+            } else if (button == Input.Buttons.RIGHT) {
+                parryDown = true;
+                return true;
+                }
             return false;
         }
 
@@ -1891,6 +1961,9 @@ public class Engine implements Screen {
         public boolean touchUp(int screenX, int screenY, int pointer, int button) {
             if (button == Input.Buttons.LEFT) {
                 attackDown = false;
+                return true;
+            } else if (button == Input.Buttons.RIGHT) {
+                parryDown = false;
                 return true;
             }
             return false;
@@ -1944,7 +2017,15 @@ public class Engine implements Screen {
         if (avatarAnimation == null) {
             return;
         }
-
+// Tick down parry window
+        if (parryWindowRemainingMs > 0) {
+            double deltaMs = deltaSeconds * 1000.0;
+            parryWindowRemainingMs -= deltaMs;
+            if (parryWindowRemainingMs <= 0) {
+                parryWindowRemainingMs = 0;
+                parryInProgress = false;
+            }
+        }
         if (attackInProgress && avatarAnimation.isAnimationFinished(avatarStateTime)) {
             attackInProgress = false;
             attackQueued = false;
@@ -1978,6 +2059,8 @@ public class Engine implements Screen {
             desiredAction = AvatarAction.DEATH;
         } else if (avatar != null && avatar.isStaggered()) {
             desiredAction = AvatarAction.TAKE_DAMAGE;
+        } else if (parryInProgress) {
+            desiredAction = AvatarAction.BLOCK;
         } else if (attackInProgress) {
             desiredAction = AvatarAction.ATTACK;
         } else if (dashInProgress) {
@@ -2265,7 +2348,8 @@ public class Engine implements Screen {
         RUN,
         TAKE_DAMAGE,
         ATTACK,
-        DEATH
+        DEATH,
+        BLOCK
     }
 
     @Override

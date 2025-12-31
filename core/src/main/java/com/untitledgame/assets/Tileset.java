@@ -131,14 +131,14 @@ public final class Tileset {
         AVATAR_DEATH_DOWN_LEFT = loadAnimationFrames(atlas, "player", "die", Direction.DOWN_LEFT, 15);
 
         // Block animations - all 8 directions
-        AVATAR_BLOCK_UP = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.UP, 15);
-        AVATAR_BLOCK_DOWN = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.DOWN, 15);
-        AVATAR_BLOCK_LEFT = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.LEFT, 15);
-        AVATAR_BLOCK_RIGHT = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.RIGHT, 15);
-        AVATAR_BLOCK_UP_RIGHT = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.UP_RIGHT, 15);
-        AVATAR_BLOCK_UP_LEFT = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.UP_LEFT, 15);
-        AVATAR_BLOCK_DOWN_RIGHT = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.DOWN_RIGHT, 15);
-        AVATAR_BLOCK_DOWN_LEFT = loadAnimationFrames(atlas, "player", "ShieldBlockMid", Direction.DOWN_LEFT, 15);
+        AVATAR_BLOCK_UP = loadAnimationFrames(atlas, "player", "block", Direction.UP, 15);
+        AVATAR_BLOCK_DOWN = loadAnimationFrames(atlas, "player", "block", Direction.DOWN, 15);
+        AVATAR_BLOCK_LEFT = loadAnimationFrames(atlas, "player", "block", Direction.LEFT, 15);
+        AVATAR_BLOCK_RIGHT = loadAnimationFrames(atlas, "player", "block", Direction.RIGHT, 15);
+        AVATAR_BLOCK_UP_RIGHT = loadAnimationFrames(atlas, "player", "block", Direction.UP_RIGHT, 15);
+        AVATAR_BLOCK_UP_LEFT = loadAnimationFrames(atlas, "player", "block", Direction.UP_LEFT, 15);
+        AVATAR_BLOCK_DOWN_RIGHT = loadAnimationFrames(atlas, "player", "block", Direction.DOWN_RIGHT, 15);
+        AVATAR_BLOCK_DOWN_LEFT = loadAnimationFrames(atlas, "player", "block", Direction.DOWN_LEFT, 15);
 
         // Take damage animations - all 8 directions
         AVATAR_TAKE_DAMAGE_UP = loadAnimationFrames(atlas, "player", "takedamage", Direction.UP, 15);

@@ -11,13 +11,7 @@ import com.untitledgame.logic.Direction;
  * Centralizes animation setup logic following libGDX best practices.
  */
 public class AnimationFactory {
-    
-    // Animation timing constants - number of ticks per frame
-    // Based on target frame durations with TICK_MS = 50ms
-    // Note: We use 1 tick for most animations to keep them fast and responsive
-    // Walk: 40ms target → 1 tick (slightly faster, more responsive feel)
-    // Attack: 60ms target → 1 tick (matches current implementation for consistency) 
-    // Death: 80ms target → 2 ticks (slower for dramatic effect)
+
     private static final int WALK_TICKS = 1;
     private static final int RUN_TICKS = 1;   // Same as walk, processing differentiates speed
     private static final int ATTACK_TICKS = 1;

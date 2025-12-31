@@ -16,11 +16,16 @@ public class CombatService {
     private final Queue<DamageEvent> damageEvents = new ArrayDeque<>();
     private final Set<Entity> trackedEntities = new HashSet<>();
     private static final double AVATAR_STAGGER_MS = 350.0;
-    private static final double NPC_STAGGER_MS = 400.0;
+    private static final double NPC_STAGGER_MS = 1000.0;
+
     public interface DamageListener {
         void onDamageApplied(Entity target, Entity source, int attemptedAmount, int appliedAmount);
     }
 
+    public interface ParryChecker {
+        boolean isParrying(Entity target);
+    }
+    private ParryChecker parryChecker;
     private DamageListener damageListener;
     public void register(Entity entity) {
         if (entity != null) {
@@ -43,6 +48,9 @@ public class CombatService {
         damageEvents.add(new DamageEvent(target, source, Math.max(0, amount)));
     }
 
+    public void setParryChecker(ParryChecker checker) {
+        this.parryChecker = checker;
+    }
     private void applyStagger(Entity target) {
         if (target == null) {
             return;
@@ -85,6 +93,19 @@ public class CombatService {
     private void applyDamage(DamageEvent event) {
         HealthComponent health = event.target().health();
         if (health == null) {
+            return;
+        }
+
+        // Check if target is parrying
+        if (parryChecker != null && parryChecker.isParrying(event.target())) {
+            // Parry successful! Negate damage and stagger the attacker
+            if (event.source() != null) {
+                applyStagger(event.source());
+            }
+            // Notify listener that parry occurred (0 applied damage)
+            if (damageListener != null) {
+                damageListener.onDamageApplied(event.target(), event.source(), event.amount(), 0);
+            }
             return;
         }
         int applied = health.damage(event.amount(), event.target());

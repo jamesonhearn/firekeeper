@@ -49,7 +49,7 @@ public class Engine implements Screen {
     public static final int LIGHT_SURGE_MESSAGE_MS = 3000;
     public static final double RNG_20_PERCENT = 0.8;
     public static final double RNG_30_PERCENT = 0.7;
-    public static final double RNG_95_PERCENT = 0.05;
+    public static final double RNG_95_PERCENT = 0.30;
     public static final int MS_PER_S = 1000;
     public static final int SEC_PER_MIN = 60;
     public static final int ATTACK_OFFSET = -2;
@@ -185,8 +185,8 @@ public class Engine implements Screen {
     private static final double AVATAR_DASH_DISTANCE = 3.0;
     private static final double AVATAR_DASH_DURATION_SECONDS = 0.1;
     private static final double AVATAR_DASH_SPEED = AVATAR_DASH_DISTANCE / AVATAR_DASH_DURATION_SECONDS;
-    private static final double MELEE_HALF_WIDTH = 0.45;
-    private static final double MELEE_REACH = 0.70;
+    private static final double MELEE_HALF_WIDTH = 1;
+    private static final double MELEE_REACH = 1;
     private static final double COLLISION_EPSILON = 1e-4;
     private static final double VELOCITY_EPSILON = 1e-6;  // Threshold for detecting avatar movement
 
@@ -199,6 +199,7 @@ public class Engine implements Screen {
     private static final int AVATAR_DEATH_TICKS = Math.max(1, (int) Math.round(80.0 / TICK_MS));
     private static final int AVATAR_BLOCK_TICKS = Math.max(1, (int) Math.round(60.0 / TICK_MS));
     private static final double PARRY_WINDOW_MS = 300.0; // 300ms window to parry after activation
+
 
     private final EnumMap<AvatarAction, EnumMap<Direction, Animation<TextureRegion>>> avatarAnimations =
             new EnumMap<>(AvatarAction.class);
@@ -214,14 +215,11 @@ public class Engine implements Screen {
     private final ArrayDeque<Character> typedKeys = new ArrayDeque<>();
     private final InputState inputState = new InputState();
 
-
-
     // Parry system
     private boolean parryDown = false;
     private boolean prevParryDown = false;
     private boolean parryInProgress = false;
     private double parryWindowRemainingMs = 0.0;
-
 
 
     // Targeting system
@@ -1147,6 +1145,7 @@ public class Engine implements Screen {
     }
 
 
+
     private void startParry(Direction facing) {
         if (avatar == null || parryInProgress || attackInProgress || avatar.isStaggered()) {
             return;
@@ -1283,6 +1282,7 @@ public class Engine implements Screen {
                 Tileset.AVATAR_BLOCK_DOWN_RIGHT, Tileset.AVATAR_BLOCK_DOWN_LEFT,
                 frameDurationSeconds(AVATAR_BLOCK_TICKS),
                 Animation.PlayMode.LOOP));
+
 
         avatarAction = AvatarAction.IDLE;
         avatarAnimation = avatarAnimations.get(avatarAction).get(facing);
@@ -2017,7 +2017,7 @@ public class Engine implements Screen {
         if (avatarAnimation == null) {
             return;
         }
-// Tick down parry window
+        // Tick down parry window
         if (parryWindowRemainingMs > 0) {
             double deltaMs = deltaSeconds * 1000.0;
             parryWindowRemainingMs -= deltaMs;

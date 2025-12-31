@@ -6,6 +6,9 @@ import com.untitledgame.logic.Direction;
 public class AttackBehavior implements AiBehavior {
     private static final double MELEE_HALF_EXTENT = Npc.ATTACK_HALF_EXTENT;
     private static final int ATTACK_DAMAGE = 10;
+    // Attack damage is queued at the peak of the attack animation (halfway through)
+    // Attack animation is 20 ticks, so peak is at tick 10
+    private static final int ATTACK_DAMAGE_TICK = 10;
     private Direction desired;
 
     @Override
@@ -63,6 +66,7 @@ public class AttackBehavior implements AiBehavior {
             }
         }
         if (owner.isAttacking() && !owner.hasQueuedAttackDamage()
+                && owner.getAttackAnimationTicks() == ATTACK_DAMAGE_TICK
                 && view.overlapsAvatar(owner.posX(), owner.posY(),
                 MELEE_HALF_EXTENT, MELEE_HALF_EXTENT)) {
             view.damageAvatar(ATTACK_DAMAGE, owner);

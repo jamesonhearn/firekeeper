@@ -67,7 +67,7 @@ public class AnimationFactory {
         registerNpcAnimation(controller, atlas, AnimationType.ATTACK, "attack1", ATTACK_TICKS, Animation.PlayMode.LOOP);
 
         // Register TAKE_DAMAGE animations
-        registerPlayerAnimation(controller, atlas, AnimationType.TAKE_DAMAGE, "takedamage", ATTACK_TICKS, Animation.PlayMode.NORMAL);
+        registerNpcAnimation(controller, atlas, AnimationType.TAKE_DAMAGE, "takedamage", ATTACK_TICKS, Animation.PlayMode.NORMAL);
 
 
         // Register DEATH animations

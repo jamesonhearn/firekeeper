@@ -96,6 +96,7 @@ public class CombatService {
             return;
         }
 
+
         // Check if target is parrying
         if (parryChecker != null && parryChecker.isParrying(event.target())) {
             // Parry successful! Negate damage and stagger the attacker

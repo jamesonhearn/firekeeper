@@ -109,6 +109,10 @@ public class Npc extends Entity {
         damageQueuedThisAttack = true;
     }
 
+
+    public int getAttackAnimationTicks() {
+        return attackAnimationTicks;
+    }
     /**
      * Advance one tick of NPC simulation: possibly move.
      */

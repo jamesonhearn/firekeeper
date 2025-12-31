@@ -55,7 +55,7 @@ public class World {
             for (int y = 1; y < HEIGHT - 1; y++) {
 
                 // must be a back wall
-                if (!world[x][y].equals(TileType.BACK_WALL)) {
+                if (!world[x][y].equals(TileType.WALL_SIDE)) {
                     continue;
                 }
                 if (!world[x][y - 1].equals(TileType.FLOOR)) {

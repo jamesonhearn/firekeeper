@@ -153,6 +153,30 @@ public class Engine implements Screen {
             "audio/step12.wav",
             "audio/step13.wav"
     };
+
+    private static final String[] PLAYER_DASH_SOUNDS = new String[]{
+            "audio/PlayerDash.wav",
+            "audio/PlayerDash2.wav"
+    };
+    private static final String[] KNIGHT_ATTACK_SOUNDS = new String[]{
+            "audio/knightattack1.wav",
+            "audio/knightattack2.wav",
+            "audio/knightattack3.wav"
+    };
+    private static final String[] MAGE_ATTACK_SOUNDS = new String[]{
+            "audio/mageattack1.wav",
+            "audio/mageattack2.wav",
+            "audio/mageattack3.wav",
+            "audio/mageattack4.wav",
+            "audio/mageattack5.wav"
+    };
+    private static final String ENEMY_DODGE_SOUND = "audio/EnemyDodge.wav";
+    private static final String DRINK_SOUND = "audio/DrinkSound.wav";
+
+    // Sound effect volume and pitch modifiers
+    private static final float KICK_VOLUME_MULTIPLIER = 1.3f; // 30% louder
+    private static final float KICK_PITCH_MULTIPLIER = 0.8f;  // 20% slower
+
     private static final String[] MUSIC_TRACKS = new String[]{
             "audio/cavegame.wav",
             "audio/main_menu.wav",
@@ -419,6 +443,17 @@ public class Engine implements Screen {
         for (String sound : STEP_SOUNDS) {
             assets.load(sound, Sound.class);
         }
+        for (String sound : PLAYER_DASH_SOUNDS) {
+            assets.load(sound, Sound.class);
+        }
+        for (String sound : KNIGHT_ATTACK_SOUNDS) {
+            assets.load(sound, Sound.class);
+        }
+        for (String sound : MAGE_ATTACK_SOUNDS) {
+            assets.load(sound, Sound.class);
+        }
+        assets.load(ENEMY_DODGE_SOUND, Sound.class);
+        assets.load(DRINK_SOUND, Sound.class);
         for (String track : MUSIC_TRACKS) {
             assets.load(track, Music.class);
         }
@@ -761,6 +796,9 @@ public class Engine implements Screen {
         }
         avatar.health().restoreFull();
         setHudMessage("Used Small Potion", HEALTH_POTION_MESSAGE_MS);
+        // Play drink sound
+        music.playEffect(DRINK_SOUND);
+
         return true;
     }
 
@@ -1097,6 +1135,7 @@ public class Engine implements Screen {
         npcSeed = seed ^ NPC_SEED_SALT; // golden ratio hash
         npcManager = new NpcManager(new Random(npcSeed), combatService, atlas);
         npcManager.setDeathHandler(this::handleNpcDeath);
+        npcManager.setAttackSoundCallback(() -> music.playRandomEffect(MAGE_ATTACK_SOUNDS));
         npcManager.spawn(world, avatar.x(), avatar.y());
         // give initial items and random spawn ground loot
         seedInitialInventory();
@@ -1152,6 +1191,8 @@ public class Engine implements Screen {
         avatarSprite = attackCycle.getKeyFrame(avatarStateTime);
 
         damagedEntitiesThisAttack.clear();
+
+        music.playRandomEffect(KNIGHT_ATTACK_SOUNDS);
     }
 
 
@@ -1195,6 +1236,8 @@ public class Engine implements Screen {
         dashDistanceRemaining = AVATAR_DASH_DISTANCE;
         dashInProgress = true;
         currentDirection = directionToChar(dashFacing);
+        // Play random dash sound
+        music.playRandomEffect(PLAYER_DASH_SOUNDS);
     }
 
     private boolean updateDashMovement(double deltaSeconds) {
@@ -1586,6 +1629,9 @@ public class Engine implements Screen {
         Direction dodgeDir = calculateDodgeDirection(npc, source);
         npc.triggerDodge(dodgeDir);
 
+        // Play enemy dodge sound
+        music.playEffect(ENEMY_DODGE_SOUND);
+
         return true;
     }
 
@@ -1609,6 +1655,10 @@ public class Engine implements Screen {
         // Calculate kick direction (toward the attacker/player)
         Direction kickDir = calculateKickDirection(npc, source);
         npc.triggerKick(kickDir);
+
+        // Play random mage attack sound with increased volume and slower pitch
+        float kickVolume = music.getSoundVolume() * KICK_VOLUME_MULTIPLIER;
+        music.playRandomEffect(MAGE_ATTACK_SOUNDS, kickVolume, KICK_PITCH_MULTIPLIER);
 
         return true;
     }
@@ -2049,6 +2099,7 @@ public class Engine implements Screen {
         npcSeed = worldSeed ^ NPC_SEED_SALT;
         npcManager = new NpcManager(new Random(npcSeed), combatService, atlas);
         npcManager.setDeathHandler(this::handleNpcDeath);
+        npcManager.setAttackSoundCallback(() -> music.playRandomEffect(MAGE_ATTACK_SOUNDS));
         npcManager.spawn(world, avatar.x(), avatar.y());
 
         // Seed new dropped items
@@ -2099,9 +2150,14 @@ public class Engine implements Screen {
                 if (avatar != null) {
                     avatar.setVelocity(0, 0);
                 }
+                // Dampen background music to 30% volume
+                music.dampenMusic(0.3f);
             }
             else if (gameState == GameState.PAUSED) {
                 gameState = GameState.PLAYING;
+
+                // Restore background music to normal volume
+                music.restoreMusicVolume();
             }
         }
 

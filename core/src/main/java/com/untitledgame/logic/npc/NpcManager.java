@@ -30,6 +30,7 @@ public class NpcManager {
     private final CombatService combatService;
     private final TextureAtlas textureAtlas;
     private Consumer<Npc> deathHandler = npc -> { };
+    private Runnable attackSoundCallback;
     private final int maxAttempts = 500;
     /**lookup of NPCs by tile for hitbox collision */
     private final Map<Entity.Position, List<Npc>> npcByTile = new HashMap<>();
@@ -60,6 +61,17 @@ public class NpcManager {
         availableVariants = new ArrayList<>(variants);
     }
 
+
+    /**
+     * Set the callback to be invoked when NPCs start attacking.
+     * @param callback The callback to run when an NPC attacks
+     */
+    public void setAttackSoundCallback(Runnable callback) {
+        this.attackSoundCallback = callback;
+    }
+
+
+
     /**
      * Spawn handful of NPCs on random floors, avoiding the avatars starting tile
      */
@@ -87,6 +99,10 @@ public class NpcManager {
             
             Npc npc = new Npc(x, y, new Random(npcSeed), npcSeed, variant, animationController, health);
             health.addDeathCallback(entity -> handleNpcDeath((Npc) entity));
+            // Set attack sound callback if available
+            if (attackSoundCallback != null) {
+                npc.setAttackSoundCallback(attackSoundCallback);
+            }
             combatService.register(npc);
             npcs.add(npc);
             addNpcPosition(new Entity.Position(x, y), npc);

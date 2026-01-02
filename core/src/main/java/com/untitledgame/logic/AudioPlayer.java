@@ -14,7 +14,7 @@ public class AudioPlayer {
     private final List<String> effectPaths = new ArrayList<>();
     private final Random random = new Random();
     private float soundVolume = 0.5f;
-    private float musicVolume = 0.1f;
+    private float musicVolume = 0.2f;
     private boolean muted = false;
     private Music currentMusic;
 
@@ -46,6 +46,79 @@ public class AudioPlayer {
         sound.play(soundVolume);
     }
 
+
+    /**
+     * Play a specific sound effect with default volume and pitch.
+     * @param path Path to the sound file
+     */
+    public void playEffect(String path) {
+        playEffect(path, soundVolume, 1.0f);
+    }
+
+    /**
+     * Play a specific sound effect with custom volume and pitch.
+     * @param path Path to the sound file
+     * @param volume Volume (0.0 to 1.0)
+     * @param pitch Pitch (0.5 = half speed, 1.0 = normal, 2.0 = double speed)
+     */
+    public void playEffect(String path, float volume, float pitch) {
+        if (muted || path == null || path.isBlank()) {
+            return;
+        }
+        if (!assets.isLoaded(path)) {
+            assets.load(path, Sound.class);
+            assets.finishLoadingAsset(path);
+        }
+        Sound sound = assets.get(path, Sound.class);
+        sound.play(volume, pitch, 0f); // volume, pitch, pan (0 = center)
+    }
+
+    /**
+     * Play a random sound effect from the given paths.
+     * @param paths Array of sound file paths to choose from
+     */
+    public void playRandomEffect(String... paths) {
+        if (muted || paths == null || paths.length == 0) {
+            return;
+        }
+        String choice = paths[random.nextInt(paths.length)];
+        playEffect(choice);
+    }
+
+    /**
+     * Play a random sound effect from the given paths with custom volume and pitch.
+     * @param paths Array of sound file paths to choose from
+     * @param volume Volume (0.0 to 1.0)
+     * @param pitch Pitch (0.5 = half speed, 1.0 = normal, 2.0 = double speed)
+     */
+    public void playRandomEffect(String[] paths, float volume, float pitch) {
+        if (muted || paths == null || paths.length == 0) {
+            return;
+        }
+        String choice = paths[random.nextInt(paths.length)];
+        playEffect(choice, volume, pitch);
+    }
+
+    /**
+     * Dampen the current music volume temporarily.
+     * @param dampenFactor Factor to multiply current volume by (e.g., 0.3 for 30% volume)
+     */
+    public void dampenMusic(float dampenFactor) {
+        if (currentMusic != null) {
+            currentMusic.setVolume(muted ? 0f : musicVolume * clamp(dampenFactor));
+        }
+    }
+
+    /**
+     * Restore music to its normal volume.
+     */
+    public void restoreMusicVolume() {
+        if (currentMusic != null) {
+            currentMusic.setVolume(muted ? 0f : musicVolume);
+        }
+    }
+
+
     public void play(String path) {
         playInternal(path, false, null);
     }
@@ -67,6 +140,10 @@ public class AudioPlayer {
 
     public void setSoundVolume(float volume) {
         soundVolume = clamp(volume);
+    }
+
+    public float getSoundVolume() {
+        return soundVolume;
     }
 
     public void setMusicVolume(float volume) {

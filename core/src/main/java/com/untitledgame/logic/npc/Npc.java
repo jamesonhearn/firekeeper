@@ -55,6 +55,9 @@ public class Npc extends Entity {
     private int attackAnimationTicks = 0; // Tracks how long attack animation has been playing
     private boolean damageQueuedThisAttack = false;
 
+    // Attack sound callback
+    private Runnable attackSoundCallback;
+
     // Configurable attack cooldown (in ticks, where 1 tick = 50ms)
     // TODO: Consider making these instance variables to allow different attack patterns per NPC type
     // Default: 30 ticks = 1.5 seconds between attacks
@@ -315,7 +318,21 @@ public class Npc extends Entity {
             attacking = true;
             attackAnimationTicks = 0; // Start tracking animation duration
             damageQueuedThisAttack = false;
+
+
+            // Trigger attack sound callback if set
+            if (attackSoundCallback != null) {
+                attackSoundCallback.run();
+            }
         }
+    }
+
+    /**
+     * Set the callback to be invoked when the NPC starts attacking.
+     * @param callback The callback to run when attack starts
+     */
+    public void setAttackSoundCallback(Runnable callback) {
+        this.attackSoundCallback = callback;
     }
     
     /**

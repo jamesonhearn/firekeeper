@@ -318,10 +318,42 @@ public class Npc extends Entity {
         }
     }
     
+    /**
+     * Check if the NPC can attack (not currently attacking and not in cooldown).
+     */
+    public boolean canAttack() {
+        return !attacking && attackCooldownTicks == 0;
+    }
+
+
+    /**
+     * Trigger a dodge roll in the specified direction.
+     * @param direction The direction to dodge in
+     */
+    public void triggerDodge(Direction direction) {
+        if (direction == null) {
+            // Default to facing direction if null
+            direction = this.facing;
+        }
+        dodging = true;
+        dodgeAnimationTicks = 0;
+        dodgeDirection = direction;
+        facing = direction;
+        // Cancel any ongoing attack animation but preserve cooldown
+        attacking = false;
+        attackAnimationTicks = 0;
+        damageQueuedThisAttack = false;
+        // Preserve attackCooldownTicks - don't reset to 0
+    }
 
 
 
-
+    /**
+     * Get the current attack cooldown in ticks.
+     */
+    public int getAttackCooldownTicks() {
+        return attackCooldownTicks;
+    }
 
     /**
      * Returns the current animation frame as a TextureRegion.

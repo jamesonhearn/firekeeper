@@ -22,13 +22,6 @@ public class Entity {
     private double knockbackSpeed;
     private double knockbackDirX;
     private double knockbackDirY;
-    private boolean dodging;
-    private Direction dodgeDirection;
-    private int attackAnimationTicks;
-    private int dodgeAnimationTicks;
-    private boolean attacking;
-    private boolean damageQueuedThisAttack;
-    private int attackCooldownTicks;
 
     public Entity(int x, int y) {
         this(x, y, new HealthComponent(1));
@@ -92,34 +85,6 @@ public class Entity {
         return health;
     }
 
-    /**
-     * Get the current attack cooldown in ticks.
-     */
-    public int getAttackCooldownTicks() {
-        return attackCooldownTicks;
-    }
-
-
-    /**
-     * Trigger a dodge roll in the specified direction.
-     * @param direction The direction to dodge in
-     */
-    public void triggerDodge(Direction direction) {
-        if (direction == null) {
-            // Default to facing direction if null
-            direction = this.facing;
-        }
-        dodging = true;
-        dodgeAnimationTicks = 0;
-        dodgeDirection = direction;
-        facing = direction;
-        // Cancel any ongoing attack animation but preserve cooldown
-        attacking = false;
-        attackAnimationTicks = 0;
-        damageQueuedThisAttack = false;
-        // Preserve attackCooldownTicks - don't reset to 0
-    }
-
     public void startKnockback(double dirX, double dirY, double distance, double durationSeconds) {
         double len = Math.hypot(dirX, dirY);
         if (len < 1e-6) return;
@@ -152,12 +117,6 @@ public class Entity {
         return true;
     }
 
-    /**
-     * Check if the NPC can attack (not currently attacking and not in cooldown).
-     */
-    public boolean canAttack() {
-        return !attacking && attackCooldownTicks == 0;
-    }
 
     public double staggerRemainingMs() {
         return staggerRemainingMs;

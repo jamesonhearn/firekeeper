@@ -117,22 +117,25 @@ public class CombatService {
         if (health == null) {
             return;
         }
+        if (dodgeChecker != null && !health.isInvulnerable()
+                && dodgeChecker.shouldDodge(event.target(), event.source())) {
 
-        // Check if target should kick counter (NPCs only, when being attacked by avatar)
+            if (damageListener != null) {
+                damageListener.onDamageApplied(event.target(), event.source(), event.amount(), 0);
+            }
+            return;
+        }
+
         if (kickCounterChecker != null && event.target() instanceof Npc
                 && kickCounterChecker.shouldKickCounter(event.target(), event.source())) {
-            // Kick counter successful! Apply knockback and damage to the attacker (avatar)
+
             if (event.source() != null && event.source().health() != null) {
-                // Apply damage to the avatar - source is the NPC that kicked
-                int kickDamage = event.amount(); // Same damage as the attack
+                int kickDamage = event.amount();
                 event.source().health().damage(kickDamage, event.target());
                 applyStagger(event.source());
-
-                // Apply knockback to avatar
                 applyKnockback(event.source(), event.target());
             }
 
-            // Notify listener that kick counter occurred (0 applied damage to NPC)
             if (damageListener != null) {
                 damageListener.onDamageApplied(event.target(), event.source(), event.amount(), 0);
             }
@@ -146,17 +149,6 @@ public class CombatService {
                 applyStagger(event.source());
             }
             // Notify listener that parry occurred (0 applied damage)
-            if (damageListener != null) {
-                damageListener.onDamageApplied(event.target(), event.source(), event.amount(), 0);
-            }
-            return;
-        }
-
-        // Check if target should dodge (only if not already invulnerable)
-        if (dodgeChecker != null && !health.isInvulnerable()
-                && dodgeChecker.shouldDodge(event.target(), event.source())) {
-            // Dodge successful! Negate damage
-            // Notify listener that dodge occurred (0 applied damage)
             if (damageListener != null) {
                 damageListener.onDamageApplied(event.target(), event.source(), event.amount(), 0);
             }

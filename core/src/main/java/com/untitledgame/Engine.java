@@ -1638,32 +1638,50 @@ public class Engine implements Screen {
         }
     }
 
-
-    private Direction calculateDodgeDirection(Npc npc, Entity source) {
-        if (source == null) {
-            // If no source, dodge in a random direction
-            Direction[] directions = Direction.values();
-            return directions[npc.rng().nextInt(directions.length)];
-        }
-
-        // Calculate vector away from source
-        double dx = npc.posX() - source.posX();
-        double dy = npc.posY() - source.posY();
-
-        // If source is exactly on top of NPC, pick random direction
-        if (Math.abs(dx) < POSITION_EPSILON && Math.abs(dy) < POSITION_EPSILON) {
-            Direction[] directions = Direction.values();
-            return directions[npc.rng().nextInt(directions.length)];
-        }
-
-        // Pick primary direction away from source
-        if (Math.abs(dx) > Math.abs(dy)) {
-            return dx > 0 ? Direction.RIGHT : Direction.LEFT;
-        } else {
-            return dy > 0 ? Direction.UP : Direction.DOWN;
-        }
+    private Direction opposite(Direction d) {
+        return switch (d) {
+            case UP -> Direction.DOWN;
+            case DOWN -> Direction.UP;
+            case LEFT -> Direction.RIGHT;
+            case RIGHT -> Direction.LEFT;
+            case UP_LEFT -> Direction.DOWN_RIGHT;
+            case UP_RIGHT -> Direction.DOWN_LEFT;
+            case DOWN_LEFT -> Direction.UP_RIGHT;
+            case DOWN_RIGHT -> Direction.UP_LEFT;
+        };
     }
+    private Direction calculateDodgeDirection(Npc npc, Entity source) {
+        Direction toward;
 
+        if (source == null) {
+            Direction[] all = Direction.values();
+            return all[npc.rng().nextInt(all.length)];
+        }
+
+        double dx = source.posX() - npc.posX();
+        double dy = source.posY() - npc.posY();
+
+        if (Math.abs(dx) < POSITION_EPSILON && Math.abs(dy) < POSITION_EPSILON) {
+            Direction[] all = Direction.values();
+            return all[npc.rng().nextInt(all.length)];
+        }
+
+        toward = Direction.fromVelocity(dx, dy);
+        Direction forbidden = opposite(toward);
+
+        // Collect allowed directions
+        Direction[] all = Direction.values();
+        Direction[] allowed = new Direction[all.length - 1];
+        int idx = 0;
+
+        for (Direction d : all) {
+            if (d != forbidden) {
+                allowed[idx++] = d;
+            }
+        }
+
+        return allowed[npc.rng().nextInt(idx)];
+    }
 
 
     private void checkForEndgame() {

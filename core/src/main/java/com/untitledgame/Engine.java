@@ -9,6 +9,7 @@ import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
@@ -18,6 +19,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.math.Vector3;
 import com.untitledgame.assets.*;
 import com.untitledgame.logic.*;
 import com.untitledgame.ui.HudUi;
@@ -222,6 +224,10 @@ public class Engine implements Screen {
     private boolean parryInProgress = false;
     private double parryWindowRemainingMs = 0.0;
 
+    // Mouse tracking
+    private float mouseWorldX = 0f;
+    private float mouseWorldY = 0f;
+    private final Vector3 mouseTempVec = new Vector3();
 
     // Targeting system
     private boolean targetingEnabled = false;
@@ -259,6 +265,7 @@ public class Engine implements Screen {
     private TextureAtlas atlas;
     private boolean assetsQueued;
     private boolean assetsReady;
+    private com.badlogic.gdx.graphics.Cursor customCursor;
     private SpriteBatch loadingBatch;
     private BitmapFont loadingFont;
     private HudUi hudUi;
@@ -774,10 +781,10 @@ public class Engine implements Screen {
         if (t && !prevTKeyDown) {
             targetingEnabled = !targetingEnabled;
             if (targetingEnabled) {
-                setHudMessage("Targeting enabled", 2000);
+                setHudMessage("Enemy lock enabled", 2000);
                 updateCurrentTarget();
             } else {
-                setHudMessage("Targeting disabled", 2000);
+                setHudMessage("Enemy lock disabled", 2000);
                 currentTarget = null;
             }
         }
@@ -1213,6 +1220,7 @@ public class Engine implements Screen {
     }
 
     private Direction resolveFacingForAction(Direction movementFacing) {
+        // Priority 1: If enemy targeting is enabled, lock onto enemy
         if (targetingEnabled) {
             Direction targetFacing = getTargetFacing();
             if (targetFacing != null) {
@@ -1222,6 +1230,15 @@ public class Engine implements Screen {
                 return targetFacing;
             }
         }
+        // Priority 2: Always track mouse position when not locked to enemy
+        Direction mouseFacing = getMouseFacing();
+        if (mouseFacing != null) {
+            if (avatar != null) {
+                avatar.setFacing(mouseFacing);
+            }
+            return mouseFacing;
+        }
+        // Priority 3: Use movement direction as fallback
         if (movementFacing != null) {
             if (avatar != null) {
                 avatar.setFacing(movementFacing);
@@ -1992,13 +2009,13 @@ public class Engine implements Screen {
             } else if (keycode == Input.Keys.D) {
                 dDown = true;
             } else if (keycode == Input.Keys.SPACE) {
-                attackDown = true;
+                shiftDown = true;
             } else if (keycode == Input.Keys.V) {
                 tabDown = true;
             } else if (keycode == Input.Keys.CONTROL_LEFT) {
                 tKeyDown = true;
-            } else if (keycode == Input.Keys.SHIFT_LEFT || keycode == Input.Keys.SHIFT_RIGHT) {
-                shiftDown = true;
+            } else if (keycode == Input.Keys.Q) {
+                parryDown = true;
             }
             return false;
         }
@@ -2010,15 +2027,9 @@ public class Engine implements Screen {
                 if (avatar != null) {
                     avatar.setVelocity(0, 0);
                 }
-
-                // release mouse
-                Gdx.input.setCursorCatched(false);
             }
             else if (gameState == GameState.PAUSED) {
                 gameState = GameState.PLAYING;
-
-                // recapture mouse
-                Gdx.input.setCursorCatched(true);
             }
         }
 
@@ -2035,11 +2046,11 @@ public class Engine implements Screen {
             } else if (keycode == Input.Keys.V) {
                 tabDown = false;
             } else if (keycode == Input.Keys.SPACE) {
-                attackDown = false;
+                shiftDown = false;
             } else if (keycode == Input.Keys.CONTROL_LEFT) {
                 tKeyDown = false;
-            } else if (keycode == Input.Keys.SHIFT_LEFT || keycode == Input.Keys.SHIFT_RIGHT) {
-                shiftDown = false;
+            } else if (keycode == Input.Keys.Q) {
+                parryDown = false;
             }
             return false;
         }
@@ -2052,6 +2063,7 @@ public class Engine implements Screen {
 
         @Override
         public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+            updateMouseWorldPosition(screenX, screenY);
             if (button == Input.Buttons.LEFT) {
                 attackDown = true;
                 return true;
@@ -2086,6 +2098,7 @@ public class Engine implements Screen {
 
         @Override
         public boolean mouseMoved(int screenX, int screenY) {
+            updateMouseWorldPosition(screenX, screenY);
             return false;
         }
 
@@ -2142,7 +2155,7 @@ public class Engine implements Screen {
         if (attackInProgress) {
             facing = attackFacing;
         } else if (targetingEnabled) {
-            // When targeting is enabled, face the target
+            // When enemy targeting is enabled, face the target
             Direction targetFacing = getTargetFacing();
             if (targetFacing != null) {
                 facing = targetFacing;
@@ -2151,12 +2164,29 @@ public class Engine implements Screen {
                     avatar.setFacing(facing);
                 }
             } else {
-                // No valid target, fall back to movement-based facing
-                facing = getMovementBasedFacing();
+                // No valid target, fall back to mouse tracking
+                Direction mouseFacing = getMouseFacing();
+                if (mouseFacing != null) {
+                    facing = mouseFacing;
+                    if (avatar != null) {
+                        avatar.setFacing(facing);
+                    }
+                } else {
+                    facing = getMovementBasedFacing();
+                }
             }
         } else {
-            // Normal movement-based facing
-            facing = getMovementBasedFacing();
+            // Default: Track mouse position
+            Direction mouseFacing = getMouseFacing();
+            if (mouseFacing != null) {
+                facing = mouseFacing;
+                if (avatar != null) {
+                    avatar.setFacing(facing);
+                }
+            } else {
+                // Fall back to movement-based facing if mouse is too close
+                facing = getMovementBasedFacing();
+            }
         }
 
         AvatarAction desiredAction;
@@ -2319,6 +2349,35 @@ public class Engine implements Screen {
             // Best-effort; ignore failures to keep gameplay responsive
         }
     }
+
+    private void updateMouseWorldPosition(int screenX, int screenY) {
+        if (renderer == null) {
+            return;
+        }
+        // Use the renderer's screenToWorld which properly handles viewport unprojection
+        Vector2 worldPos = renderer.screenToWorld(screenX, screenY);
+        mouseWorldX = worldPos.x;
+        mouseWorldY = worldPos.y;
+    }
+
+    private Direction getMouseFacing() {
+        if (avatar == null) {
+            return null;
+        }
+        double dx = mouseWorldX - avatar.posX();
+        double dy = mouseWorldY - avatar.posY();
+
+        // Only use mouse facing if mouse is far enough from avatar
+        if (Math.hypot(dx, dy) < 0.5) {
+            return null;
+        }
+
+        return Direction.fromVelocity(dx, dy);
+    }
+
+
+
+
 //
 //    private void restoreFromState(SaveState state) {
 //        reset();
@@ -2461,10 +2520,29 @@ public class Engine implements Screen {
     @Override
     public void show() {
         installInputProcessor();
-        Gdx.input.setCursorCatched(true);
+        createAndSetCustomCursor();
         phase = EnginePhase.MENU;
         menuMusicStarted = false;
         gameplayMusicStarted = false;
+    }
+
+    private void createAndSetCustomCursor() {
+        // Dispose old cursor if exists
+        if (customCursor != null) {
+            customCursor.dispose();
+        }
+
+        // Create a simple dot cursor (5x5 pixels)
+        Pixmap pixmap = new Pixmap(4, 4, Pixmap.Format.RGBA8888);
+        pixmap.setColor(1f, 1f, 1f, 1f); // White
+        pixmap.fillCircle(2, 2, 2);
+
+        customCursor = Gdx.graphics.newCursor(pixmap, 2, 2);
+        Gdx.graphics.setCursor(customCursor);
+        pixmap.dispose();
+
+        // Make cursor visible
+        Gdx.input.setCursorCatched(false);
     }
 
     @Override
@@ -2664,6 +2742,12 @@ public class Engine implements Screen {
             hudUi.dispose();
             hudUi = null;
         }
+
+        if (customCursor != null) {
+            customCursor.dispose();
+            customCursor = null;
+        }
+
 
         if (uiAssets != null) {
             uiAssets.dispose();

@@ -80,7 +80,7 @@ public class NpcManager {
             }
             int variant = selectVariant();
             long npcSeed = rng.nextLong();
-            HealthComponent health = new HealthComponent(3, 3, 0, 8);
+            HealthComponent health = new HealthComponent(10, 10, 0, 8);
             
             // Create animation controller with all animation types
             AnimationController animationController = AnimationFactory.createNpcController(textureAtlas, variant);

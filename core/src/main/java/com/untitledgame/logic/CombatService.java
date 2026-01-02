@@ -29,12 +29,17 @@ public class CombatService {
     public interface DodgeChecker {
         boolean shouldDodge(Entity target, Entity source);
     }
-
+    public interface KickCounterChecker {
+        boolean shouldKickCounter(Entity target, Entity source);
+    }
 
 
     private ParryChecker parryChecker;
     private DodgeChecker dodgeChecker;
+    private KickCounterChecker kickCounterChecker;
     private DamageListener damageListener;
+
+
     public void register(Entity entity) {
         if (entity != null) {
             trackedEntities.add(entity);
@@ -52,6 +57,11 @@ public class CombatService {
     public void setDodgeChecker(DodgeChecker checker) {
         this.dodgeChecker = checker;
     }
+
+    public void setKickCounterChecker(KickCounterChecker checker) {
+        this.kickCounterChecker = checker;
+    }
+
     public void queueDamage(Entity target, Entity source, int amount) {
         if (target == null || target.health() == null) {
             return;
@@ -108,6 +118,26 @@ public class CombatService {
             return;
         }
 
+        // Check if target should kick counter (NPCs only, when being attacked by avatar)
+        if (kickCounterChecker != null && event.target() instanceof Npc
+                && kickCounterChecker.shouldKickCounter(event.target(), event.source())) {
+            // Kick counter successful! Apply knockback and damage to the attacker (avatar)
+            if (event.source() != null && event.source().health() != null) {
+                // Apply damage to the avatar - source is the NPC that kicked
+                int kickDamage = event.amount(); // Same damage as the attack
+                event.source().health().damage(kickDamage, event.target());
+                applyStagger(event.source());
+
+                // Apply knockback to avatar
+                applyKnockback(event.source(), event.target());
+            }
+
+            // Notify listener that kick counter occurred (0 applied damage to NPC)
+            if (damageListener != null) {
+                damageListener.onDamageApplied(event.target(), event.source(), event.amount(), 0);
+            }
+            return;
+        }
 
         // Check if target is parrying
         if (parryChecker != null && parryChecker.isParrying(event.target())) {
@@ -145,4 +175,22 @@ public class CombatService {
             damageListener.onDamageApplied(event.target(), event.source(), event.amount(), applied);
         }
     }
+
+
+    private void applyKnockback(Entity target, Entity source) {
+        if (target == null || source == null) return;
+
+        double dx = target.posX() - source.posX();
+        double dy = target.posY() - source.posY();
+        double dist = Math.hypot(dx, dy);
+
+        if (dist < 1e-6) return;
+
+        // 3 tiles over 0.25 seconds
+        double distance = 3.0;
+        double duration = 0.25;
+
+        target.startKnockback(dx, dy, distance, duration);
+    }
+
 }

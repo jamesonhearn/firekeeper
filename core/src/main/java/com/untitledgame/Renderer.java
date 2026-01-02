@@ -991,6 +991,8 @@ public class Renderer implements AutoCloseable {
         }
         scratchVector.set(screenX, screenY);
         viewport.unproject(scratchVector);
+        scratchVector.x += viewOriginX + (float) renderOffsetX - xOffset;
+        scratchVector.y += viewOriginY + (float) renderOffsetY - yOffset;
         return scratchVector;
     }
 

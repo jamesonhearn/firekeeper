@@ -40,6 +40,12 @@ public class Npc extends Entity {
 
 
 
+    // Kick counter-attack state tracking
+    private boolean kicking = false;
+    private int kickAnimationTicks = 0;
+    private static final int KICK_ANIMATION_DURATION_TICKS = 15; // Duration of kick animation
+    public static final double KICK_COUNTER_PROBABILITY = 0.20; // 20% chance to kick counter player attacks
+
     // Centralized animation system using shared timing constants
     private final AnimationController animationController;
 
@@ -125,6 +131,19 @@ public class Npc extends Entity {
         return dodging;
     }
 
+    public boolean isKicking() {
+        return kicking;
+    }
+
+    public void triggerKick(Direction kickDirection) {
+        if (kicking || isStaggered() || health() == null || health().isDepleted()) {
+            return;
+        }
+        kicking = true;
+        kickAnimationTicks = 0;
+        setFacing(kickDirection);
+    }
+
     public int getAttackAnimationTicks() {
         return attackAnimationTicks;
     }
@@ -133,6 +152,20 @@ public class Npc extends Entity {
      */
     public void tick(WorldView view) {
         moveTick += 1;
+
+        // Handle kick animation
+        if (kicking) {
+            kickAnimationTicks++;
+            setVelocity(0.0, 0.0); // Stop moving during kick
+
+            // Check if kick animation is complete
+            if (kickAnimationTicks >= KICK_ANIMATION_DURATION_TICKS) {
+                kicking = false;
+                kickAnimationTicks = 0;
+            }
+            return;
+        }
+
         if (dodging) {
             dodgeAnimationTicks++;
 
@@ -250,7 +283,9 @@ public class Npc extends Entity {
     public void updateAnimation(float deltaSeconds) {
         // Determine animation type based on state and velocity (not waypoints)
         AnimationType desiredType = AnimationType.IDLE;
-        if (dodging) {
+        if (kicking) {
+            desiredType = AnimationType.KICK;
+        } else if (dodging) {
             boolean b = Math.random() <= 0.5;
             if (b) {
                 desiredType = AnimationType.DODGE1;
@@ -283,42 +318,10 @@ public class Npc extends Entity {
         }
     }
     
-    /**
-     * Check if the NPC can attack (not currently attacking and not in cooldown).
-     */
-    public boolean canAttack() {
-        return !attacking && attackCooldownTicks == 0;
-    }
-
-
-    /**
-     * Trigger a dodge roll in the specified direction.
-     * @param direction The direction to dodge in
-     */
-    public void triggerDodge(Direction direction) {
-        if (direction == null) {
-            // Default to facing direction if null
-            direction = this.facing;
-        }
-        dodging = true;
-        dodgeAnimationTicks = 0;
-        dodgeDirection = direction;
-        facing = direction;
-        // Cancel any ongoing attack animation but preserve cooldown
-        attacking = false;
-        attackAnimationTicks = 0;
-        damageQueuedThisAttack = false;
-        // Preserve attackCooldownTicks - don't reset to 0
-    }
 
 
 
-    /**
-     * Get the current attack cooldown in ticks.
-     */
-    public int getAttackCooldownTicks() {
-        return attackCooldownTicks;
-    }
+
 
     /**
      * Returns the current animation frame as a TextureRegion.

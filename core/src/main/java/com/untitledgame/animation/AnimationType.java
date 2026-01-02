@@ -10,5 +10,6 @@ public enum AnimationType {
     ATTACK,
     DEATH,
     TAKE_DAMAGE,
-    DODGE1, DODGE2
+    DODGE1, DODGE2,
+    KICK
 }

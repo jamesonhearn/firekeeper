@@ -252,7 +252,6 @@ public class Engine implements Screen {
     private EnginePhase phase = EnginePhase.MENU;
     private boolean menuMusicStarted = false;
     private boolean gameplayMusicStarted = false;
-    private boolean awaitingQuitCommand = false;
     private BitmapFont titleFont;
     private BitmapFont menuFont;
     private BitmapFont hudFont;
@@ -298,6 +297,7 @@ public class Engine implements Screen {
         combatService.setDamageListener(this::recordDamageStats);
         combatService.setParryChecker(this::isEntityParrying);
         combatService.setDodgeChecker(this::shouldEntityDodge);
+        combatService.setKickCounterChecker(this::shouldEntityKickCounter);
         avatarAnimations.clear();
         avatarAnimation = null;
         avatarAction = AvatarAction.IDLE;
@@ -325,7 +325,6 @@ public class Engine implements Screen {
         dashInProgress = false;
         dashDistanceRemaining = 0.0;
         dashDirection.set(0f, 0f);
-        awaitingQuitCommand = false;
         typedKeys.clear();
         gameState = GameState.PLAYING;
         sessionStartMs = 0L;
@@ -439,6 +438,7 @@ public class Engine implements Screen {
         playerConfig.addAnimation("melee", "Melee.png", 15);
         playerConfig.addAnimation("block", "ShieldBlockMid.png", 15);
         playerConfig.addAnimation("melee2", "Melee2.png", 15);
+        playerConfig.addAnimation("kick", "Kick.png", 15);
         playerConfig.addAnimation("takedamage", "TakeDamage.png", 15);
         playerConfig.addAnimation("die", "Die.png", 15);
         configs.addAll(playerConfig.createSpriteSheetConfigs());
@@ -451,7 +451,7 @@ public class Engine implements Screen {
         npcConfig.addAnimation("attack2", "Attack2.png", 15);
         npcConfig.addAnimation("rolling", "Rolling.png", 15);
         npcConfig.addAnimation("slide", "Slide.png", 15);
-
+        npcConfig.addAnimation("kick", "Kick.png", 15);
         npcConfig.addAnimation("takedamage", "TakeDamage.png", 15);
         npcConfig.addAnimation("die", "Die.png", 15);
         configs.addAll(npcConfig.createSpriteSheetConfigs());
@@ -1059,10 +1059,6 @@ public class Engine implements Screen {
 
     // Checks for System commands (save/quit)
     private boolean processCommand(char command, boolean record, boolean allowQuit) {
-        if (command == ':') {
-            awaitingQuitCommand = true;
-            return false;
-        }
         if (command == 'e') {
             pickupAtAvatar();
             return false;
@@ -1073,10 +1069,12 @@ public class Engine implements Screen {
         }
         if (command == 'f') {
             lightToggle = !lightToggle;
-        }
-        if (command == 'w' || command == 's' || command == 'a' || command == 'd') {
             return false;
         }
+        if (command == 'w' || command == 'a' || command == 's' || command == 'd') {
+            return false;
+        }
+
         applyCommands(String.valueOf(command), record, allowQuit);
         return false;
     }
@@ -1591,7 +1589,55 @@ public class Engine implements Screen {
         return true;
     }
 
+    private boolean shouldEntityKickCounter(Entity target, Entity source) {
+        // Only NPCs can kick counter, and only when attacked by the Avatar
+        if (!(target instanceof Npc npc) || !(source instanceof Avatar)) {
+            return false;
+        }
+
+        // Don't kick if already kicking, dodging, dead, or staggered
+        if (npc.isKicking() || npc.isDodging() || npc.isStaggered()
+                || npc.health() == null || npc.health().isDepleted()) {
+            return false;
+        }
+
+        // Probabilistic kick counter check
+        if (npc.rng().nextDouble() >= Npc.KICK_COUNTER_PROBABILITY) {
+            return false;
+        }
+
+        // Calculate kick direction (toward the attacker/player)
+        Direction kickDir = calculateKickDirection(npc, source);
+        npc.triggerKick(kickDir);
+
+        return true;
+    }
+
     private static final double POSITION_EPSILON = 0.01; // Threshold for position comparison
+
+    private Direction calculateKickDirection(Npc npc, Entity source) {
+        if (source == null) {
+            // If no source, kick in current facing direction
+            return npc.facing();
+        }
+
+        // Calculate vector toward source (opposite of dodge)
+        double dx = source.posX() - npc.posX();
+        double dy = source.posY() - npc.posY();
+
+        // If source is exactly on top of NPC, use current facing
+        if (Math.abs(dx) < POSITION_EPSILON && Math.abs(dy) < POSITION_EPSILON) {
+            return npc.facing();
+        }
+
+        // Pick primary direction toward source
+        if (Math.abs(dx) > Math.abs(dy)) {
+            return dx > 0 ? Direction.RIGHT : Direction.LEFT;
+        } else {
+            return dy > 0 ? Direction.UP : Direction.DOWN;
+        }
+    }
+
 
     private Direction calculateDodgeDirection(Npc npc, Entity source) {
         if (source == null) {
@@ -1669,6 +1715,10 @@ public class Engine implements Screen {
         }
         others.addAll(npcs);
         for (Npc npc : npcs) {
+            if (npc.updateKnockback(deltaSeconds)) {
+                integrateEntityMotion(npc, deltaSeconds, others);
+                continue;
+            }
             npc.tickStagger(deltaSeconds);
             // AI is fully responsible for setting velocity
             npc.updateAnimation((float) deltaSeconds);
@@ -1993,11 +2043,17 @@ public class Engine implements Screen {
     private class InputState implements InputProcessor {
         @Override
         public boolean keyDown(int keycode) {
+            // ESC toggles pause
             if (keycode == Input.Keys.ESCAPE) {
                 togglePause();
                 return true;
             }
 
+            // Q only works while paused
+            if (keycode == Input.Keys.Q && gameState == GameState.PAUSED) {
+                exitGame();
+                return true;
+            }
             if (gameState != GameState.PLAYING) return false;
 
             if (keycode == Input.Keys.W) {
@@ -2008,14 +2064,12 @@ public class Engine implements Screen {
                 sDown = true;
             } else if (keycode == Input.Keys.D) {
                 dDown = true;
-            } else if (keycode == Input.Keys.SPACE) {
+            } else if (keycode == Input.Keys.SHIFT_LEFT) {
                 shiftDown = true;
             } else if (keycode == Input.Keys.V) {
                 tabDown = true;
             } else if (keycode == Input.Keys.CONTROL_LEFT) {
                 tKeyDown = true;
-            } else if (keycode == Input.Keys.Q) {
-                parryDown = true;
             }
             return false;
         }
@@ -2045,12 +2099,10 @@ public class Engine implements Screen {
                 dDown = false;
             } else if (keycode == Input.Keys.V) {
                 tabDown = false;
-            } else if (keycode == Input.Keys.SPACE) {
+            } else if (keycode == Input.Keys.SHIFT_LEFT) {
                 shiftDown = false;
             } else if (keycode == Input.Keys.CONTROL_LEFT) {
                 tKeyDown = false;
-            } else if (keycode == Input.Keys.Q) {
-                parryDown = false;
             }
             return false;
         }
@@ -2602,6 +2654,10 @@ public class Engine implements Screen {
     private void updateGameplay(double deltaSeconds) {
         if (avatar != null) {
             avatar.tickStagger(deltaSeconds);
+            if (avatar.updateKnockback(deltaSeconds)) {
+                integrateAvatarMotion(deltaSeconds);
+                return;
+            }
             if (avatar.isStaggered()) {
                 attackInProgress = false;
                 attackQueued = false;
@@ -2642,15 +2698,6 @@ public class Engine implements Screen {
         while (hasNextKeyTyped()) {
             char raw = nextKeyTyped();
             char c = Character.toLowerCase(raw);
-            if (awaitingQuitCommand) {
-                awaitingQuitCommand = false;
-                if (c == 'q') {
-                    saveGameState();
-                    exitGame();
-                    return;
-                }
-                continue;
-            }
             if (processCommand(c, true, true)) {
                 return;
             }
@@ -2680,11 +2727,12 @@ public class Engine implements Screen {
     }
     private void drawPauseOverlay() {
         drawOverlayRect();
-        if (screenOverlay == null) {
-            return;
-        }
-        screenOverlay.renderCentered("Paused", new String[]{"Press ESC to Resume"});
+        if (screenOverlay == null) return;
 
+        screenOverlay.renderCentered(
+                "Paused",
+                new String[]{"Press ESC to Resume or Q to Quit"}
+        );
     }
 
     private void beginGameplay() {

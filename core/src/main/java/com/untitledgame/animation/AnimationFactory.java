@@ -70,6 +70,9 @@ public class AnimationFactory {
         // Register TAKE_DAMAGE animations
         registerNpcAnimation(controller, atlas, AnimationType.TAKE_DAMAGE, "takedamage", ATTACK_TICKS, Animation.PlayMode.NORMAL);
 
+        // Register KICK animations (Counter-attack animation)
+        registerNpcAnimation(controller, atlas, AnimationType.KICK, "kick", ATTACK_TICKS, Animation.PlayMode.NORMAL);
+
         // Register DODGE animations (Rolling spritesheet)
         registerNpcAnimation(controller, atlas, AnimationType.DODGE1, "rolling", DODGE_TICKS, Animation.PlayMode.NORMAL);
         registerNpcAnimation(controller, atlas, AnimationType.DODGE2, "slide", DODGE_TICKS, Animation.PlayMode.NORMAL);

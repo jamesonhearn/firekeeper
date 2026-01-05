@@ -89,9 +89,11 @@ public class AnimationController {
         if (currentAnimation == null) {
             return null;
         }
-        // Only DEATH animations are non-looping
-        // ATTACK animations now loop to support attack cooldown system
-        boolean looping = currentAnimationType != AnimationType.DEATH;
+        // Non-looping animations: DEATH, ATTACK, TAKE_DAMAGE, DODGE, KICK, BLOCK
+        // Looping animations: IDLE, WALK, RUN
+        boolean looping = currentAnimationType == AnimationType.IDLE
+                || currentAnimationType == AnimationType.WALK
+                || currentAnimationType == AnimationType.RUN;
         return currentAnimation.getKeyFrame(stateTime, looping);
     }
 

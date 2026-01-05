@@ -35,10 +35,17 @@ public class AnimationFactory {
         registerPlayerAnimation(controller, atlas, AnimationType.RUN, "walk", RUN_TICKS, Animation.PlayMode.LOOP);
         
         // Register ATTACK animations
-        registerPlayerAnimation(controller, atlas, AnimationType.ATTACK, "melee", ATTACK_TICKS, Animation.PlayMode.NORMAL);
+        registerPlayerAnimation(controller, atlas, AnimationType.ATTACK, "melee_basic", ATTACK_TICKS, Animation.PlayMode.NORMAL);
+        registerPlayerAnimation(controller, atlas, AnimationType.ATTACK, "melee_secondary", ATTACK_TICKS, Animation.PlayMode.NORMAL);
+        registerPlayerAnimation(controller, atlas, AnimationType.ATTACK, "melee_spin", ATTACK_TICKS, Animation.PlayMode.NORMAL);
+
+        registerPlayerAnimation(controller, atlas, AnimationType.KICK, "kick", ATTACK_TICKS, Animation.PlayMode.NORMAL);
 
         // Register TAKE_DAMAGE animations
-        registerNpcAnimation(controller, atlas, AnimationType.TAKE_DAMAGE, "takedamage", ATTACK_TICKS, Animation.PlayMode.NORMAL);
+        registerPlayerAnimation(controller, atlas, AnimationType.TAKE_DAMAGE, "takedamage", ATTACK_TICKS, Animation.PlayMode.NORMAL);
+
+        // Register BLOCK animations (parrying/shield blocking)
+        registerPlayerAnimation(controller, atlas, AnimationType.BLOCK, "block", ATTACK_TICKS, Animation.PlayMode.NORMAL);
 
         // Register DEATH animations
         registerPlayerAnimation(controller, atlas, AnimationType.DEATH, "die", DEATH_TICKS, Animation.PlayMode.NORMAL);

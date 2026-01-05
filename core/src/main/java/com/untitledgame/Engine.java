@@ -20,6 +20,8 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
+import com.untitledgame.animation.AnimationController;
+import com.untitledgame.animation.AnimationFactory;
 import com.untitledgame.assets.*;
 import com.untitledgame.logic.*;
 import com.untitledgame.ui.HudUi;
@@ -127,8 +129,6 @@ public class Engine implements Screen {
     private boolean prevWDown, prevADown, prevSDown, prevDDown;
     private boolean prevAttackDown;
     private boolean prevTabDown;
-    private boolean dashInProgress = false;
-    private double dashDistanceRemaining = 0.0;
     private final Vector2 dashDirection = new Vector2();
 
     private UiAssets uiAssets;
@@ -228,16 +228,8 @@ public class Engine implements Screen {
     private static final double PARRY_WINDOW_MS = 200.0; // 300ms window to parry after activation
 
 
-    private final EnumMap<AvatarAction, EnumMap<Direction, Animation<TextureRegion>>> avatarAnimations =
-            new EnumMap<>(AvatarAction.class);
-    private Animation<TextureRegion> avatarAnimation;
-    private float avatarStateTime = 0f;
-    private AvatarAction avatarAction = AvatarAction.IDLE;
     private char lastFacing = 's';
     private boolean attackDown = false;
-    private boolean attackInProgress = false;
-    private boolean attackQueued = false;
-    private Direction attackFacing = Direction.DOWN;
     private final Set<Entity> damagedEntitiesThisAttack = new HashSet<>();
     private final ArrayDeque<Character> typedKeys = new ArrayDeque<>();
     private final InputState inputState = new InputState();
@@ -245,8 +237,6 @@ public class Engine implements Screen {
     // Parry system
     private boolean parryDown = false;
     private boolean prevParryDown = false;
-    private boolean parryInProgress = false;
-    private double parryWindowRemainingMs = 0.0;
 
     // Mouse tracking
     private float mouseWorldX = 0f;
@@ -322,12 +312,7 @@ public class Engine implements Screen {
         combatService.setParryChecker(this::isEntityParrying);
         combatService.setDodgeChecker(this::shouldEntityDodge);
         combatService.setKickCounterChecker(this::shouldEntityKickCounter);
-        avatarAnimations.clear();
-        avatarAnimation = null;
-        avatarAction = AvatarAction.IDLE;
         currentDirection = 0;
-        attackInProgress = false;
-        attackQueued = false;
         attackDown = false;
         wDown = false;
         aDown = false;
@@ -344,10 +329,6 @@ public class Engine implements Screen {
         prevTabDown = false;
         parryDown = false;
         prevParryDown = false;
-        parryInProgress = false;
-        parryWindowRemainingMs = 0.0;
-        dashInProgress = false;
-        dashDistanceRemaining = 0.0;
         dashDirection.set(0f, 0f);
         typedKeys.clear();
         gameState = GameState.PLAYING;
@@ -470,11 +451,12 @@ public class Engine implements Screen {
         AnimationSetConfig playerConfig = new AnimationSetConfig("player", "avatars/player", 64, 64);
         playerConfig.addAnimation("idle", "Idle.png", 15);
         playerConfig.addAnimation("walk", "Walk.png", 15);
-        playerConfig.addAnimation("melee", "Melee.png", 15);
+        playerConfig.addAnimation("ATTACK", "Melee.png", 15);
+        playerConfig.addAnimation("ATTACK", "Melee2.png", 15);
         playerConfig.addAnimation("block", "ShieldBlockMid.png", 15);
-        playerConfig.addAnimation("melee2", "Melee2.png", 15);
+        playerConfig.addAnimation("block", "ShieldBlockStart.png", 15);
         playerConfig.addAnimation("kick", "Kick.png", 15);
-        playerConfig.addAnimation("takedamage", "TakeDamage.png", 15);
+        playerConfig.addAnimation("TAKE_DAMAGE", "TakeDamage.png", 15);
         playerConfig.addAnimation("die", "Die.png", 15);
         configs.addAll(playerConfig.createSpriteSheetConfigs());
 
@@ -482,12 +464,12 @@ public class Engine implements Screen {
         AnimationSetConfig npcConfig = new AnimationSetConfig("npc", "avatars/NPC", 64, 64);
         npcConfig.addAnimation("idle", "Idle.png", 15);
         npcConfig.addAnimation("walk", "Walk.png", 15);
-        npcConfig.addAnimation("attack1", "Attack1.png", 15);
-        npcConfig.addAnimation("attack2", "Attack2.png", 15);
+        npcConfig.addAnimation("ATTACK", "Attack1.png", 15);
+        npcConfig.addAnimation("ATTACK", "Attack2.png", 15);
         npcConfig.addAnimation("rolling", "Rolling.png", 15);
         npcConfig.addAnimation("slide", "Slide.png", 15);
         npcConfig.addAnimation("kick", "Kick.png", 15);
-        npcConfig.addAnimation("takedamage", "TakeDamage.png", 15);
+        npcConfig.addAnimation("TAKE_DAMAGE", "TakeDamage.png", 15);
         npcConfig.addAnimation("die", "Die.png", 15);
         configs.addAll(npcConfig.createSpriteSheetConfigs());
 
@@ -641,6 +623,8 @@ public class Engine implements Screen {
         atlas = buildTextureAtlas();
         Tileset.initialize(atlas);
         renderer.initialize(VIEW_WIDTH, VIEW_HEIGHT, atlas);
+
+        //renderer.setWorldScale(1.0f);
 
         uiAssets = new UiAssets();
         uiAssets.load();
@@ -1017,7 +1001,7 @@ public class Engine implements Screen {
             startParry(actionFacing);
         }
         boolean movedThisFrame;
-        if (dashInProgress) {
+        if (avatar.isDashing()) {
             movedThisFrame = updateDashMovement(deltaSeconds);
         } else {
             if (inputActive) {
@@ -1159,10 +1143,13 @@ public class Engine implements Screen {
                     HealthComponent avatarHealth = new HealthComponent(PLAYER_HEALTH, PLAYER_HEALTH,
                             1, INVULNERABILITY_FRAMES);
                     avatarHealth.addDeathCallback(this::handleAvatarDeath);
-                    avatar = new Avatar(x, y, 3, avatarHealth);
+
+                    // Create animation controller for player using AnimationFactory
+                    AnimationController avatarAnimationController = AnimationFactory.createPlayerController(atlas);
+
+                    avatar = new Avatar(x, y, 3, avatarHealth, avatarAnimationController);
                     avatar.setSpawnPoint(new Entity.Position(x, y));
                     combatService.register(avatar);
-                    initializeAvatarAnimations(Direction.DOWN);
                     // Snap the smoothed draw coordinates to the spawn tile so the avatar
                     // doesn't glide in from (0,0) on the first frame.
                     drawX = avatar.posX() - 0.5;
@@ -1177,18 +1164,11 @@ public class Engine implements Screen {
 
     // Depending on direction, update avatar position and rotate sprite animation frame
     private void startAttack(Direction facing) {
-        if (avatar == null || attackInProgress || parryInProgress) {
+        if (avatar == null || avatar.isParryInProgress() || avatar.isAttacking()) {
             return;
         }
         Direction resolvedFacing = resolveFacingForAction(facing);
-        attackInProgress = true;
-        attackQueued = true;
-        avatarStateTime = 0f;
-        attackFacing = resolvedFacing;
-        Animation<TextureRegion> attackCycle = avatarAnimations.get(AvatarAction.ATTACK).get(resolvedFacing);
-        avatarAnimation = attackCycle;
-        avatarAction = AvatarAction.ATTACK;
-        avatarSprite = attackCycle.getKeyFrame(avatarStateTime);
+        avatar.startAttack(resolvedFacing);
 
         damagedEntitiesThisAttack.clear();
 
@@ -1198,34 +1178,17 @@ public class Engine implements Screen {
 
 
     private void startParry(Direction facing) {
-        if (avatar == null || parryInProgress || attackInProgress || avatar.isStaggered()) {
+        if (avatar == null || avatar.isParryInProgress() || avatar.isAttacking() || avatar.isStaggered()) {
             return;
         }
         Direction resolvedFacing = resolveFacingForAction(facing);
-
-        // Check animations exist before setting state
-        EnumMap<Direction, Animation<TextureRegion>> blockAnimations = avatarAnimations.get(AvatarAction.BLOCK);
-        if (blockAnimations == null) {
-            return;
-        }
-        Animation<TextureRegion> blockCycle = blockAnimations.get(resolvedFacing);
-        if (blockCycle == null) {
-            return;
-        }
-
-        // Set parry state
-        parryInProgress = true;
-        parryWindowRemainingMs = PARRY_WINDOW_MS;
-        avatarStateTime = 0f;
-        avatarAnimation = blockCycle;
-        avatarAction = AvatarAction.BLOCK;
-        avatarSprite = blockCycle.getKeyFrame(avatarStateTime);
+        avatar.startParry(resolvedFacing);
     }
 
 
 
     private void startDash(Direction preferredFacing) {
-        if (avatar == null || dashInProgress || avatar.isStaggered()) {
+        if (avatar == null || avatar.isStaggered()) {
             return;
         }
         Direction dashFacing = preferredFacing != null ? preferredFacing : resolveFacingForAction(null);
@@ -1233,28 +1196,27 @@ public class Engine implements Screen {
             avatar.setFacing(dashFacing);
         }
         dashDirection.set(facingVector(dashFacing)).nor();
-        dashDistanceRemaining = AVATAR_DASH_DISTANCE;
-        dashInProgress = true;
+        avatar.startDash(dashFacing);
         currentDirection = directionToChar(dashFacing);
         // Play random dash sound
         music.playRandomEffect(PLAYER_DASH_SOUNDS);
     }
 
     private boolean updateDashMovement(double deltaSeconds) {
-        if (avatar == null || attackInProgress || avatar.isStaggered()) {
+        if (avatar == null || avatar.isAttacking() || avatar.isStaggered() || !avatar.isDashing()) {
             return false;
         }
         double startX = avatar.posX();
         double startY = avatar.posY();
-        double stepSeconds = Math.min(deltaSeconds, dashDistanceRemaining / AVATAR_DASH_SPEED);
+        double stepSeconds = Math.min(deltaSeconds, avatar.getDashDistanceRemaining() / AVATAR_DASH_SPEED);
         avatar.setVelocity(dashDirection.x * AVATAR_DASH_SPEED, dashDirection.y * AVATAR_DASH_SPEED);
         integrateAvatarMotion(stepSeconds);
         double moved = Math.hypot(avatar.posX() - startX, avatar.posY() - startY);
-        dashDistanceRemaining = Math.max(0.0, dashDistanceRemaining - moved);
-        boolean finished = dashDistanceRemaining <= COLLISION_EPSILON
+        avatar.tickDash(moved);
+        boolean finished = avatar.getDashDistanceRemaining() <= COLLISION_EPSILON
                 || (stepSeconds > 0.0 && moved < COLLISION_EPSILON);
         if (finished) {
-            dashInProgress = false;
+            avatar.endDash();
             avatar.setVelocity(0.0, 0.0);
         }
         return moved > 0.0;
@@ -1289,117 +1251,6 @@ public class Engine implements Screen {
         return avatar != null ? avatar.facing() : Direction.DOWN;
     }
 
-
-    private void initializeAvatarAnimations(Direction facing) {
-        avatarAnimations.clear();
-        avatarAnimations.put(AvatarAction.IDLE, buildAvatarAnimations8Dir(
-                Tileset.AVATAR_WALK_UP[0],
-                Tileset.AVATAR_WALK_DOWN[0],
-                Tileset.AVATAR_WALK_LEFT[0],
-                Tileset.AVATAR_WALK_RIGHT[0],
-                Tileset.AVATAR_WALK_UP_RIGHT[0],
-                Tileset.AVATAR_WALK_UP_LEFT[0],
-                Tileset.AVATAR_WALK_DOWN_RIGHT[0],
-                Tileset.AVATAR_WALK_DOWN_LEFT[0],
-                frameDurationSeconds(1),
-                Animation.PlayMode.LOOP));
-        avatarAnimations.put(AvatarAction.WALK, buildAvatarAnimations8Dir(
-                Tileset.AVATAR_WALK_UP, Tileset.AVATAR_WALK_DOWN,
-                Tileset.AVATAR_WALK_LEFT, Tileset.AVATAR_WALK_RIGHT,
-                Tileset.AVATAR_WALK_UP_RIGHT, Tileset.AVATAR_WALK_UP_LEFT,
-                Tileset.AVATAR_WALK_DOWN_RIGHT, Tileset.AVATAR_WALK_DOWN_LEFT,
-                frameDurationSeconds(AVATAR_WALK_TICKS),
-                Animation.PlayMode.LOOP));
-        avatarAnimations.put(AvatarAction.RUN, buildAvatarAnimations8Dir(
-                Tileset.AVATAR_WALK_UP, Tileset.AVATAR_WALK_DOWN,
-                Tileset.AVATAR_WALK_LEFT, Tileset.AVATAR_WALK_RIGHT,
-                Tileset.AVATAR_WALK_UP_RIGHT, Tileset.AVATAR_WALK_UP_LEFT,
-                Tileset.AVATAR_WALK_DOWN_RIGHT, Tileset.AVATAR_WALK_DOWN_LEFT,
-                frameDurationSeconds(AVATAR_RUN_TICKS),
-                Animation.PlayMode.LOOP));
-        avatarAnimations.put(AvatarAction.ATTACK, buildAvatarAnimations8Dir(
-                Tileset.AVATAR_ATTACK_UP, Tileset.AVATAR_ATTACK_DOWN,
-                Tileset.AVATAR_ATTACK_LEFT, Tileset.AVATAR_ATTACK_RIGHT,
-                Tileset.AVATAR_ATTACK_UP_RIGHT, Tileset.AVATAR_ATTACK_UP_LEFT,
-                Tileset.AVATAR_ATTACK_DOWN_RIGHT, Tileset.AVATAR_ATTACK_DOWN_LEFT,
-                frameDurationSeconds(AVATAR_ATTACK_TICKS),
-                Animation.PlayMode.NORMAL));
-        avatarAnimations.put(AvatarAction.DEATH, buildAvatarAnimations8Dir(
-                Tileset.AVATAR_DEATH_UP, Tileset.AVATAR_DEATH_DOWN,
-                Tileset.AVATAR_DEATH_LEFT, Tileset.AVATAR_DEATH_RIGHT,
-                Tileset.AVATAR_DEATH_UP_RIGHT, Tileset.AVATAR_DEATH_UP_LEFT,
-                Tileset.AVATAR_DEATH_DOWN_RIGHT, Tileset.AVATAR_DEATH_DOWN_LEFT,
-                frameDurationSeconds(AVATAR_DEATH_TICKS),
-                Animation.PlayMode.NORMAL));
-        avatarAnimations.put(AvatarAction.TAKE_DAMAGE, buildAvatarAnimations8Dir(
-                Tileset.AVATAR_TAKE_DAMAGE_UP, Tileset.AVATAR_TAKE_DAMAGE_DOWN,
-                Tileset.AVATAR_TAKE_DAMAGE_LEFT, Tileset.AVATAR_TAKE_DAMAGE_RIGHT,
-                Tileset.AVATAR_TAKE_DAMAGE_UP_RIGHT, Tileset.AVATAR_TAKE_DAMAGE_UP_LEFT,
-                Tileset.AVATAR_TAKE_DAMAGE_DOWN_RIGHT, Tileset.AVATAR_TAKE_DAMAGE_DOWN_LEFT,
-                frameDurationSeconds(AVATAR_ATTACK_TICKS),
-                Animation.PlayMode.NORMAL));
-        avatarAnimations.put(AvatarAction.BLOCK, buildAvatarAnimations8Dir(
-                Tileset.AVATAR_BLOCK_UP, Tileset.AVATAR_BLOCK_DOWN,
-                Tileset.AVATAR_BLOCK_LEFT, Tileset.AVATAR_BLOCK_RIGHT,
-                Tileset.AVATAR_BLOCK_UP_RIGHT, Tileset.AVATAR_BLOCK_UP_LEFT,
-                Tileset.AVATAR_BLOCK_DOWN_RIGHT, Tileset.AVATAR_BLOCK_DOWN_LEFT,
-                frameDurationSeconds(AVATAR_BLOCK_TICKS),
-                Animation.PlayMode.LOOP));
-
-
-        avatarAction = AvatarAction.IDLE;
-        avatarAnimation = avatarAnimations.get(avatarAction).get(facing);
-        avatarStateTime = 0f;
-        avatarSprite = avatarAnimation.getKeyFrame(avatarStateTime);
-        lastFacing = directionToChar(facing);
-    }
-
-    private EnumMap<Direction, Animation<TextureRegion>> buildAvatarAnimations8Dir(TextureRegion up, TextureRegion down,
-                                                                               TextureRegion left, TextureRegion right,
-                                                                               TextureRegion upRight, TextureRegion upLeft,
-                                                                               TextureRegion downRight, TextureRegion downLeft,
-                                                                               float frameDuration,
-                                                                               Animation.PlayMode playMode) {
-        return buildAvatarAnimations8Dir(
-                new TextureRegion[]{up},
-                new TextureRegion[]{down},
-                new TextureRegion[]{left},
-                new TextureRegion[]{right},
-                new TextureRegion[]{upRight},
-                new TextureRegion[]{upLeft},
-                new TextureRegion[]{downRight},
-                new TextureRegion[]{downLeft},
-                frameDuration,
-                playMode);
-    }
-
-    private EnumMap<Direction, Animation<TextureRegion>> buildAvatarAnimations8Dir(TextureRegion[] up, TextureRegion[] down,
-                                                                               TextureRegion[] left, TextureRegion[] right,
-                                                                               TextureRegion[] upRight, TextureRegion[] upLeft,
-                                                                               TextureRegion[] downRight, TextureRegion[] downLeft,
-                                                                               float frameDuration,
-                                                                               Animation.PlayMode playMode) {
-        EnumMap<Direction, Animation<TextureRegion>> map = new EnumMap<>(Direction.class);
-        map.put(Direction.UP, animation(frameDuration, playMode, up));
-        map.put(Direction.DOWN, animation(frameDuration, playMode, down));
-        map.put(Direction.LEFT, animation(frameDuration, playMode, left));
-        map.put(Direction.RIGHT, animation(frameDuration, playMode, right));
-        map.put(Direction.UP_RIGHT, animation(frameDuration, playMode, upRight));
-        map.put(Direction.UP_LEFT, animation(frameDuration, playMode, upLeft));
-        map.put(Direction.DOWN_RIGHT, animation(frameDuration, playMode, downRight));
-        map.put(Direction.DOWN_LEFT, animation(frameDuration, playMode, downLeft));
-        return map;
-    }
-
-    private float frameDurationSeconds(int ticksPerFrame) {
-        return (float) (ticksPerFrame * (TICK_MS / (double) MS_PER_S));
-    }
-
-    private Animation<TextureRegion> animation(float frameDuration, Animation.PlayMode playMode, TextureRegion[] frames) {
-        Animation<TextureRegion> animation = new Animation<>(frameDuration, frames);
-        animation.setPlayMode(playMode);
-        return animation;
-    }
 
     private Direction directionFromChar(char facing) {
         return switch (facing) {
@@ -1602,8 +1453,8 @@ public class Engine implements Screen {
 
     private boolean isEntityParrying(Entity target) {
         // Only avatar can parry
-        if (target instanceof Avatar && avatar == target) {
-            return parryWindowRemainingMs > 0;
+        if (target instanceof Avatar avatarTarget) {
+            return avatarTarget.isParrying();
         }
         return false;
     }
@@ -1949,23 +1800,12 @@ public class Engine implements Screen {
     private void beginDeathSequence() {
         gameState = GameState.DYING;
         currentDirection = 0;
-        attackInProgress = false;
-        attackQueued = false;
+        avatar.endAttack();
         attackDown = false;
         clampLightToDeathRadius();
-        AvatarAction desired = AvatarAction.DEATH;
-        Direction facing = directionFromChar(lastFacing);
-        EnumMap<Direction, Animation<TextureRegion>> map = avatarAnimations.getOrDefault(desired,
-                avatarAnimations.get(AvatarAction.IDLE));
-        if (map != null) {
-            Animation<TextureRegion> cycle = map.get(facing);
-            if (cycle != null) {
-                avatarStateTime = 0f;
-                avatarAnimation = cycle;
-                avatarAction = desired;
-                avatarSprite = avatarAnimation.getKeyFrame(avatarStateTime);
-            }
-        }
+        // Update animation to DEATH - the Avatar's updateAnimation will handle this based on health state
+        avatar.updateAnimation(0f);
+        avatarSprite = avatar.currentFrame();
     }
 
     private void clampLightToDeathRadius() {
@@ -2007,11 +1847,10 @@ public class Engine implements Screen {
 
 
     private void runDeathSequence() {
-        if (gameState == GameState.DYING && avatarAnimation == null) {
+        if (gameState == GameState.DYING && avatar == null) {
             gameState = GameState.DEAD;
         }
-        if (gameState == GameState.DYING && avatarAnimation != null
-                && avatarAnimation.isAnimationFinished(avatarStateTime)) {
+        if (gameState == GameState.DYING && avatar.isAnimationFinished()) {
             gameState = GameState.DEAD;
         }
         if (gameState == GameState.DEAD) {
@@ -2258,45 +2097,34 @@ public class Engine implements Screen {
     }
 
     private void tickAvatarAnimation(double deltaSeconds, boolean movedThisTick) {
-        if (avatarAnimation == null) {
+        if (avatar == null) {
             return;
         }
-        // Tick down parry window
-        if (parryWindowRemainingMs > 0) {
-            double deltaMs = deltaSeconds * 1000.0;
-            parryWindowRemainingMs -= deltaMs;
-            if (parryWindowRemainingMs <= 0) {
-                parryWindowRemainingMs = 0;
-                parryInProgress = false;
-            }
-        }
-        if (attackInProgress && avatarAnimation.isAnimationFinished(avatarStateTime)) {
-            attackInProgress = false;
-            attackQueued = false;
+        // Tick down parry window in avatar
+        avatar.tickParry(deltaSeconds);
+
+        // Check if attack animation finished
+        if (avatar.isAttacking() && avatar.isAnimationFinished()) {
+            avatar.endAttack();
             damagedEntitiesThisAttack.clear();
         }
 
         // Calculate facing direction from velocity for smooth 8-directional animation
         Direction facing;
-        if (attackInProgress) {
-            facing = attackFacing;
+        if (avatar.isAttacking()) {
+            facing = avatar.getAttackFacing();
         } else if (targetingEnabled) {
             // When enemy targeting is enabled, face the target
             Direction targetFacing = getTargetFacing();
             if (targetFacing != null) {
                 facing = targetFacing;
-                // Store this as the avatar's facing direction
-                if (avatar != null) {
-                    avatar.setFacing(facing);
-                }
+                avatar.setFacing(facing);
             } else {
                 // No valid target, fall back to mouse tracking
                 Direction mouseFacing = getMouseFacing();
                 if (mouseFacing != null) {
                     facing = mouseFacing;
-                    if (avatar != null) {
-                        avatar.setFacing(facing);
-                    }
+                    avatar.setFacing(facing);
                 } else {
                     facing = getMovementBasedFacing();
                 }
@@ -2306,84 +2134,30 @@ public class Engine implements Screen {
             Direction mouseFacing = getMouseFacing();
             if (mouseFacing != null) {
                 facing = mouseFacing;
-                if (avatar != null) {
-                    avatar.setFacing(facing);
-                }
+                avatar.setFacing(facing);
             } else {
                 // Fall back to movement-based facing if mouse is too close
                 facing = getMovementBasedFacing();
             }
         }
 
-        AvatarAction desiredAction;
-        if (gameState != GameState.PLAYING) {
-            desiredAction = AvatarAction.DEATH;
-        } else if (avatar != null && avatar.isStaggered()) {
-            desiredAction = AvatarAction.TAKE_DAMAGE;
-        } else if (parryInProgress) {
-            desiredAction = AvatarAction.BLOCK;
-        } else if (attackInProgress) {
-            desiredAction = AvatarAction.ATTACK;
-        } else if (dashInProgress) {
-            desiredAction = AvatarAction.RUN;
-        } else if (currentDirection == 0) {
-            desiredAction = AvatarAction.IDLE;
-        } else {
-            desiredAction = AvatarAction.WALK;
-        }
+        // Update avatar animation using centralized AnimationController
+        avatar.updateAnimation((float) deltaSeconds);
+        avatarSprite = avatar.currentFrame();
 
-        EnumMap<Direction, Animation<TextureRegion>> byDirection = avatarAnimations.get(desiredAction);
-        Animation<TextureRegion> selected = byDirection.get(facing);
-
-        boolean actionChanged = desiredAction != avatarAction;
-        boolean animationChanged = selected != avatarAnimation;
-
-        if (actionChanged) {
-            if (desiredAction == AvatarAction.IDLE) {
-                avatarStateTime = 0f;
-            } else if (desiredAction == AvatarAction.ATTACK) {
-                attackQueued = false;
-                attackInProgress = true;
-                avatarStateTime = 0f;
-            } else if (desiredAction == AvatarAction.TAKE_DAMAGE) {
-                attackInProgress = false;
-                attackQueued = false;
-                avatarStateTime = 0f;
-            } else {
-                avatarStateTime = carryStateTime(avatarAnimation, selected, avatarStateTime);
-            }
-        } else if (animationChanged) {
-            avatarStateTime = carryStateTime(avatarAnimation, selected, avatarStateTime);
-        }
-        avatarAction = desiredAction;
-        avatarAnimation = selected;
-
-        boolean looping = avatarAction != AvatarAction.ATTACK
-                && avatarAction != AvatarAction.DEATH
-                && avatarAction != AvatarAction.TAKE_DAMAGE;
-        boolean shouldAdvance = looping || movedThisTick || avatarAnimation.getKeyFrames().length > 1;
-        if (shouldAdvance) {
-            avatarStateTime += deltaSeconds;
-        }
-
-        avatarSprite = avatarAnimation.getKeyFrame(avatarStateTime, looping);
-        if (attackInProgress) {
+        // Process attack overlaps if attacking
+        if (avatar.isAttacking()) {
             processAvatarAttackOverlaps();
-        }
-        if (avatarAction == AvatarAction.ATTACK && avatarAnimation.isAnimationFinished(avatarStateTime)) {
-            attackInProgress = false;
-            attackQueued = false;
-            damagedEntitiesThisAttack.clear();
         }
         lastFacing = directionToChar(facing);
     }
 
     private void processAvatarAttackOverlaps() {
-        if (!attackInProgress || npcManager == null || avatar == null || combatService == null) {
+        if (!avatar.isAttacking() || npcManager == null || avatar == null || combatService == null) {
             return;
         }
 
-        AttackBounds bounds = buildAttackBounds(avatar.posX(), avatar.posY(), attackFacing,
+        AttackBounds bounds = buildAttackBounds(avatar.posX(), avatar.posY(), avatar.getAttackFacing(),
                 Avatar.HITBOX_HALF, MELEE_REACH, MELEE_HALF_WIDTH);
 
         for (Npc npc : npcManager.npcs()) {
@@ -2417,15 +2191,6 @@ public class Engine implements Screen {
     }
 
     private record AttackBounds(double centerX, double centerY, double halfX, double halfY) { }
-
-
-    private float carryStateTime(Animation<TextureRegion> previous, Animation<TextureRegion> next, float previousStateTime) {
-        if (previous == null || next == null) {
-            return 0f;
-        }
-        int frameIndex = previous.getKeyFrameIndex(previousStateTime);
-        return frameIndex * next.getFrameDuration();
-    }
 
 
 
@@ -2633,16 +2398,6 @@ public class Engine implements Screen {
         return String.format("%d:%02d", minutes, seconds);
     }
 
-    private enum AvatarAction {
-        IDLE,
-        WALK,
-        RUN,
-        TAKE_DAMAGE,
-        ATTACK,
-        DEATH,
-        BLOCK
-    }
-
     @Override
     public void show() {
         installInputProcessor();
@@ -2733,10 +2488,7 @@ public class Engine implements Screen {
                 return;
             }
             if (avatar.isStaggered()) {
-                attackInProgress = false;
-                attackQueued = false;
-                dashInProgress = false;
-                dashDistanceRemaining = 0.0;
+                // Cancel avatar actions when staggered - handled in Avatar.onStaggered()
                 avatar.setVelocity(0.0, 0.0);
             }
         }
@@ -2814,7 +2566,7 @@ public class Engine implements Screen {
         tickAccumulatorMs = 0.0;
         if (!gameplayMusicStarted) {
             music.stop();
-            music.playLoop("audio/loop_dropper.wav");
+//            music.playLoop("audio/loop_dropper.wav");
             gameplayMusicStarted = true;
         }
     }

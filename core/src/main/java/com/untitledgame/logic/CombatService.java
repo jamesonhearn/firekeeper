@@ -4,6 +4,9 @@ import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
+
+import com.badlogic.gdx.assets.AssetManager;
+import com.badlogic.gdx.audio.Sound;
 import com.untitledgame.logic.npc.Npc;
 
 /**
@@ -12,11 +15,16 @@ import com.untitledgame.logic.npc.Npc;
  */
 public class CombatService {
     public record DamageEvent(Entity target, Entity source, int amount) { }
-
+    private AssetManager assets = new AssetManager();
+    private AudioPlayer effects = new AudioPlayer(assets);
     private final Queue<DamageEvent> damageEvents = new ArrayDeque<>();
     private final Set<Entity> trackedEntities = new HashSet<>();
     private static final double AVATAR_STAGGER_MS = 350.0;
     private static final double NPC_STAGGER_MS = 1000.0;
+    private static final String[] TAKE_DAMAGE_MELEE = new String[]{
+            "audio/takedamage1.mp3",
+            "audio/takedamage2.mp3"
+    };
 
     public interface DamageListener {
         void onDamageApplied(Entity target, Entity source, int attemptedAmount, int appliedAmount);
@@ -67,6 +75,9 @@ public class CombatService {
             return;
         }
         damageEvents.add(new DamageEvent(target, source, Math.max(0, amount)));
+        if (target instanceof Npc) {
+            effects.playRandomEffect(TAKE_DAMAGE_MELEE);
+        };
     }
 
     public void setParryChecker(ParryChecker checker) {

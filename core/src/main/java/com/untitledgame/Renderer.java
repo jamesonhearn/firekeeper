@@ -32,7 +32,7 @@ import java.util.Objects;
  * Handles tile rendering, lighting effects, and UI overlay.
  */
 public class Renderer implements AutoCloseable {
-    static final int TILE_SIZE = 24;
+    static final int TILE_SIZE = 36;
     private static final int MAX_LIGHTS = 16;
     private static final float AMBIENT_LIGHT = 0.0f;
     private static final double NPC_SCALE_TILES = 1.0;
@@ -50,6 +50,7 @@ public class Renderer implements AutoCloseable {
     private int worldHeight;
     private int viewOriginX;
     private int viewOriginY;
+    private float worldScale = 1.0f; // 1.0 = current behavior
     private static final double CAMERA_SMOOTH = 0.20;
     private static final double SMOOTH_SPEED = 0.10;
     private static final float DEFAULT_FALLOFF = 3.0f;
@@ -136,6 +137,14 @@ public class Renderer implements AutoCloseable {
     private int lastLightCount = 0;
     private final List<LightSource> activeLights = new ArrayList<>();
 
+
+    public int getViewWidth() {
+        return this.viewWidth;
+    }
+
+    public int getViewHeight() {
+        return this.viewHeight;
+    }
 
     private OrthographicCamera uiCamera;
 
@@ -327,6 +336,7 @@ public class Renderer implements AutoCloseable {
             viewport = new FitViewport(width, height, camera);
         }
         camera.setToOrtho(false, width, height);
+        camera.zoom = 1f / worldScale;
         camera.update();
         viewport.update(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), true);
         TETile.configureRendering(batch, textureAtlas, 1.0f);
@@ -359,6 +369,13 @@ public class Renderer implements AutoCloseable {
         batch.setShader(previousShader);
     }
 
+    public void setWorldScale(float scale) {
+        this.worldScale = Math.max(0.1f, scale);
+        if (camera != null) {
+            camera.zoom = 1f / worldScale;
+            camera.update();
+        }
+    }
 
     public void drawWorld(TileType[][] world,
                           List<Corpse> corpses,
@@ -379,7 +396,7 @@ public class Renderer implements AutoCloseable {
 
         ops.sort(Comparator
                 .comparingInt((RenderOp op) -> op.layer().order)
-                .thenComparingDouble(RenderOp::sortY)
+                .thenComparingDouble((RenderOp op) -> -op.sortY())   // reverse Y
                 .thenComparingDouble(RenderOp::sortX));
         for (RenderOp op : ops) {
             op.action().run();
@@ -889,9 +906,17 @@ public class Renderer implements AutoCloseable {
         if (isFloor(tile)) {
             return DrawLayer.BACKGROUND;
         }
-        if ((isSideWall(tile) || isTopWall(tile)) && y < coverCutoff) {
+
+        // Wall tops should ALWAYS cover entities
+        if (isTopWall(tile)) {
             return DrawLayer.COVER;
         }
+
+        // Side walls only cover when above entities
+        if (isSideWall(tile) && y < coverCutoff) {
+            return DrawLayer.COVER;
+        }
+
         return DrawLayer.BACKGROUND;
     }
 

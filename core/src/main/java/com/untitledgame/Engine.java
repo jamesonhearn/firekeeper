@@ -451,13 +451,15 @@ public class Engine implements Screen {
         AnimationSetConfig playerConfig = new AnimationSetConfig("player", "avatars/player", 64, 64);
         playerConfig.addAnimation("idle", "Idle.png", 15);
         playerConfig.addAnimation("walk", "Walk.png", 15);
-        playerConfig.addAnimation("ATTACK", "Melee.png", 15);
-        playerConfig.addAnimation("ATTACK", "Melee2.png", 15);
-        playerConfig.addAnimation("block", "ShieldBlockMid.png", 15);
-        playerConfig.addAnimation("block", "ShieldBlockStart.png", 15);
+        playerConfig.addAnimation("melee_basic", "Melee.png", 15);
+        playerConfig.addAnimation("melee_secondary", "Melee2.png", 15);
+        playerConfig.addAnimation("melee_run", "MeleeRun.png", 15);
+        playerConfig.addAnimation("melee_spin", "MeleeSpin.png", 15);
+        playerConfig.addAnimation("block_end", "ShieldBlockMid.png", 15);
+        playerConfig.addAnimation("block_start", "ShieldBlockStart.png", 15);
         playerConfig.addAnimation("kick", "Kick.png", 15);
-        playerConfig.addAnimation("TAKE_DAMAGE", "TakeDamage.png", 15);
-        playerConfig.addAnimation("die", "Die.png", 15);
+        playerConfig.addAnimation("take_damage", "TakeDamage.png", 15);
+        playerConfig.addAnimation("death", "Die.png", 15);
         configs.addAll(playerConfig.createSpriteSheetConfigs());
 
         // New 8-directional sprite sheets for NPC (64x64 frames, 15 frames, 8 rows)

@@ -137,7 +137,7 @@ public class Engine implements Screen {
     private static final String HB_50   = "ui/healthbar_50.png";
     private static final String HB_25   = "ui/healthbar_25.png";
     private static final String HB_ZERO = "ui/healthbar_empty.png";
-    private static final int TICK_MS = 50; // create ticks to create consistent movements
+    private static final int TICK_MS = 40; // create ticks to create consistent movements
     private static final String[] STEP_SOUNDS = new String[]{
             "audio/step1.wav",
             "audio/step2.wav",
@@ -238,6 +238,11 @@ public class Engine implements Screen {
     private boolean parryDown = false;
     private boolean prevParryDown = false;
 
+    // Kick system
+    private boolean kickDown = false;
+    private boolean prevKickDown = false;
+    private final Set<Entity> kickedEntitiesThisKick = new HashSet<>();
+
     // Mouse tracking
     private float mouseWorldX = 0f;
     private float mouseWorldY = 0f;
@@ -329,6 +334,8 @@ public class Engine implements Screen {
         prevTabDown = false;
         parryDown = false;
         prevParryDown = false;
+        kickDown = false;
+        prevKickDown = false;
         dashDirection.set(0f, 0f);
         typedKeys.clear();
         gameState = GameState.PLAYING;
@@ -354,6 +361,7 @@ public class Engine implements Screen {
         prevTKeyDown = false;
         resetLighting();
         damagedEntitiesThisAttack.clear();
+        kickedEntitiesThisKick.clear();
 
     }
 
@@ -974,6 +982,7 @@ public class Engine implements Screen {
         boolean d = dDown;
         boolean attack = attackDown;
         boolean parry = parryDown;
+        boolean kick = kickDown;
         boolean dashPressed = shiftDown && !prevShiftDown;
 
         updateDirectionOnPress(w, a, s, d, prevWDown, prevADown, prevSDown, prevDDown);
@@ -1002,6 +1011,9 @@ public class Engine implements Screen {
         if (parry && !prevParryDown) {
             startParry(actionFacing);
         }
+        if (kick && !prevKickDown) {
+            startKick(actionFacing);
+        }
         boolean movedThisFrame;
         if (avatar.isDashing()) {
             movedThisFrame = updateDashMovement(deltaSeconds);
@@ -1024,6 +1036,7 @@ public class Engine implements Screen {
         prevDDown = d;
         prevAttackDown = attack;
         prevParryDown = parryDown;
+        prevKickDown = kick;
         prevShiftDown = shiftDown;
 
         if (movedThisFrame) {
@@ -1091,10 +1104,10 @@ public class Engine implements Screen {
             useHealthPotion();
             return false;
         }
-        if (command == 'f') {
-            lightToggle = !lightToggle;
-            return false;
-        }
+//        if (command == 'f') {
+//            lightToggle = !lightToggle;
+//            return false;
+//        }
         if (command == 'w' || command == 'a' || command == 's' || command == 'd') {
             return false;
         }
@@ -1188,6 +1201,19 @@ public class Engine implements Screen {
     }
 
 
+    private void startKick(Direction facing) {
+        if (avatar == null || avatar.isKicking() || avatar.isParryInProgress() || avatar.isAttacking() || avatar.isStaggered()) {
+            return;
+        }
+        Direction resolvedFacing = resolveFacingForAction(facing);
+        avatar.startKick(resolvedFacing);
+
+        kickedEntitiesThisKick.clear();
+
+        // Use the same attack sounds but with modified volume/pitch
+        float kickVolume = music.getSoundVolume() * KICK_VOLUME_MULTIPLIER;
+        music.playRandomEffect(KNIGHT_ATTACK_SOUNDS, kickVolume, KICK_PITCH_MULTIPLIER);
+    }
 
     private void startDash(Direction preferredFacing) {
         if (avatar == null || avatar.isStaggered()) {
@@ -1974,6 +2000,8 @@ public class Engine implements Screen {
                 sDown = true;
             } else if (keycode == Input.Keys.D) {
                 dDown = true;
+            } else if (keycode == Input.Keys.F) {
+                kickDown = true;
             } else if (keycode == Input.Keys.SHIFT_LEFT) {
                 shiftDown = true;
             } else if (keycode == Input.Keys.V) {
@@ -2012,6 +2040,8 @@ public class Engine implements Screen {
                 sDown = false;
             } else if (keycode == Input.Keys.D) {
                 dDown = false;
+            } else if (keycode == Input.Keys.F) {
+                kickDown = false;
             } else if (keycode == Input.Keys.V) {
                 tabDown = false;
             } else if (keycode == Input.Keys.SHIFT_LEFT) {
@@ -2111,9 +2141,15 @@ public class Engine implements Screen {
             damagedEntitiesThisAttack.clear();
         }
 
+        // Check if kick animation finished
+        if (avatar.isKicking() && avatar.isAnimationFinished()) {
+            avatar.endKick();
+            kickedEntitiesThisKick.clear();
+        }
+
         // Calculate facing direction from velocity for smooth 8-directional animation
         Direction facing;
-        if (avatar.isAttacking()) {
+        if (avatar.isAttacking() || avatar.isKicking()) {
             facing = avatar.getAttackFacing();
         } else if (targetingEnabled) {
             // When enemy targeting is enabled, face the target
@@ -2151,6 +2187,12 @@ public class Engine implements Screen {
         if (avatar.isAttacking()) {
             processAvatarAttackOverlaps();
         }
+
+        // Process kick overlaps if kicking
+        if (avatar.isKicking()) {
+            processAvatarKickOverlaps();
+        }
+
         lastFacing = directionToChar(facing);
     }
 
@@ -2172,6 +2214,58 @@ public class Engine implements Screen {
             }
         }
     }
+
+
+    private void processAvatarKickOverlaps() {
+        if (!avatar.isKicking() || npcManager == null || avatar == null || combatService == null) {
+            return;
+        }
+
+        AttackBounds bounds = buildAttackBounds(avatar.posX(), avatar.posY(), avatar.getAttackFacing(),
+                Avatar.HITBOX_HALF, MELEE_REACH, MELEE_HALF_WIDTH);
+
+        // Kick does limited damage (half of normal attack)
+        int kickDamage = AVATAR_ATTACK_DAMAGE / 2;
+        if (kickDamage < 1) {
+            kickDamage = 1;
+        }
+
+        for (Npc npc : npcManager.npcs()) {
+            if (kickedEntitiesThisKick.contains(npc)) {
+                continue;
+            }
+            if (overlaps(bounds, npc.posX(), npc.posY(), Npc.HITBOX_HALF)) {
+                // Queue damage
+                combatService.queueDamage(npc, avatar, kickDamage);
+
+                // Apply knockback
+                applyKickKnockback(npc);
+
+                kickedEntitiesThisKick.add(npc);
+            }
+        }
+    }
+
+    private void applyKickKnockback(Entity target) {
+        if (target == null || avatar == null) {
+            return;
+        }
+
+        double dx = target.posX() - avatar.posX();
+        double dy = target.posY() - avatar.posY();
+        double dist = Math.hypot(dx, dy);
+
+        if (dist < 1e-6) {
+            return;
+        }
+
+        // Small knockback: 2 tiles over 0.2 seconds
+        double distance = 2.0;
+        double duration = 0.2;
+
+        target.startKnockback(dx, dy, distance, duration);
+    }
+
 
     private AttackBounds buildAttackBounds(double originX, double originY, Direction facing, double attackerHalf,
                                            double reach, double halfWidth) {

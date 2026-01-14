@@ -15,12 +15,12 @@ import com.untitledgame.logic.npc.Npc;
  */
 public class CombatService {
     public record DamageEvent(Entity target, Entity source, int amount) { }
-    private AssetManager assets = new AssetManager();
-    private AudioPlayer effects = new AudioPlayer(assets);
+    private final AssetManager assets = new AssetManager();
+    private final AudioPlayer effects = new AudioPlayer(assets);
     private final Queue<DamageEvent> damageEvents = new ArrayDeque<>();
     private final Set<Entity> trackedEntities = new HashSet<>();
     private static final double AVATAR_STAGGER_MS = 350.0;
-    private static final double NPC_STAGGER_MS = 1000.0;
+    private static final double NPC_STAGGER_MS = 500.0;
     private static final String[] TAKE_DAMAGE_MELEE = new String[]{
             "audio/takedamage1.mp3",
             "audio/takedamage2.mp3"

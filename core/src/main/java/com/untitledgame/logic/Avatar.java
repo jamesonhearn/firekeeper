@@ -9,9 +9,19 @@ import com.untitledgame.animation.AnimationType;
  * Uses centralized AnimationController for consistent animation management with NPCs.
  */
 public class Avatar extends Entity {
+
+    public enum MeleeAttackType {
+        BASIC,
+        SECONDARY,
+        SPIN
+    }
+
     public static final double HITBOX_HALF = 0.24;
     private int lives;
     private Position spawnPoint;
+    private int attacksSinceLastSpin = 0;
+    private int attacksUntilNextSpin = 2 + (int)(Math.random() * 2); // 2-3 attacks
+    private MeleeAttackType currentMeleeType = MeleeAttackType.BASIC;
 
 
     // Centralized animation system using shared AnimationController
@@ -21,6 +31,9 @@ public class Avatar extends Entity {
     private boolean attacking = false;
     private boolean attackQueued = false;
     private Direction attackFacing = Direction.DOWN;
+
+    // Kick state tracking
+    private boolean kickInProgress = false;
 
     // Parry state tracking
     private boolean parryInProgress = false;
@@ -75,6 +88,7 @@ public class Avatar extends Entity {
         attacking = false;
         attackQueued = false;
         parryInProgress = false;
+        kickInProgress = false;
         parryWindowRemainingMs = 0.0;
         dashInProgress = false;
         dashDistanceRemaining = 0.0;
@@ -93,14 +107,25 @@ public class Avatar extends Entity {
 
         // Determine animation type based on state
         AnimationType desiredType = AnimationType.IDLE;
+        int animationVariant = 0;
         if (health != null && health.isDepleted()) {
             desiredType = AnimationType.DEATH;
         } else if (isStaggered()) {
             desiredType = AnimationType.TAKE_DAMAGE;
+        } else if (kickInProgress) {
+            desiredType = AnimationType.KICK;
         } else if (parryInProgress) {
             desiredType = AnimationType.BLOCK;
+            // Select block animation variant based on parry window
+            animationVariant = isParrying() ? 0 : 1; // 0=block_start (active parry), 1=block_end
         } else if (attacking) {
             desiredType = AnimationType.ATTACK;
+            // Select attack animation based on current melee type
+            animationVariant = switch (currentMeleeType) {
+                case BASIC -> 0;      // melee_basic
+                case SECONDARY -> 1;  // melee_secondary
+                case SPIN -> 2;       // melee_spin
+            };
         } else if (dashInProgress) {
             desiredType = AnimationType.RUN;
         } else if (Math.abs(velocityX) > 1e-6 || Math.abs(velocityY) > 1e-6) {
@@ -108,7 +133,7 @@ public class Avatar extends Entity {
         }
 
         // Update animation
-        animationController.setAnimation(desiredType, facing);
+        animationController.setAnimation(desiredType, facing, animationVariant);
         animationController.update(deltaSeconds);
     }
 
@@ -150,6 +175,18 @@ public class Avatar extends Entity {
         if (attacking || parryInProgress || isStaggered()) {
             return;
         }
+        // Determine the attack type
+        if (attacksSinceLastSpin >= attacksUntilNextSpin && attacksSinceLastSpin > 0) {
+            // Time for a spin attack (never on first attack since attacksSinceLastSpin > 0)
+            currentMeleeType = MeleeAttackType.SPIN;
+            attacksSinceLastSpin = 0;
+            // Set next spin interval to 2-3 attacks
+            attacksUntilNextSpin = 2 + (int)(Math.random() * 2);
+        } else {
+            // Randomly choose between basic and secondary
+            currentMeleeType = Math.random() < 0.5 ? MeleeAttackType.BASIC : MeleeAttackType.SECONDARY;
+            attacksSinceLastSpin++;
+        }
         attacking = true;
         attackQueued = true;
         attackFacing = facing;
@@ -173,6 +210,11 @@ public class Avatar extends Entity {
 
     public Direction getAttackFacing() {
         return attackFacing;
+    }
+
+
+    public MeleeAttackType getCurrentMeleeType() {
+        return currentMeleeType;
     }
 
     // Parry state methods
@@ -211,6 +253,27 @@ public class Avatar extends Entity {
     public void endParry() {
         parryInProgress = false;
         parryWindowRemainingMs = 0.0;
+    }
+
+    // Kick state methods
+
+    public boolean isKicking() {
+        return kickInProgress;
+    }
+
+    public void startKick(Direction facing) {
+        if (kickInProgress || attacking || parryInProgress || isStaggered()) {
+            return;
+        }
+        kickInProgress = true;
+        setFacing(facing);
+        if (animationController != null) {
+            animationController.resetStateTime();
+        }
+    }
+
+    public void endKick() {
+        kickInProgress = false;
     }
 
     // Dash state methods
@@ -252,5 +315,6 @@ public class Avatar extends Entity {
         attackQueued = false;
         parryInProgress = false;
         parryWindowRemainingMs = 0.0;
+        kickInProgress = false;
     }
 }

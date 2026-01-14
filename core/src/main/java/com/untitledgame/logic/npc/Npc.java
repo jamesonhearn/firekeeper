@@ -36,7 +36,7 @@ public class Npc extends Entity {
     private Direction dodgeDirection = Direction.DOWN;
     private static final int DODGE_ANIMATION_DURATION_TICKS = 12; // Duration of dodge roll
     private static final double DODGE_SPEED = 8.0; // Speed multiplier during dodge
-    public static final double DODGE_PROBABILITY = 0.30; // 30% chance to dodge attacks
+    public static final double DODGE_PROBABILITY = 0.50; // 30% chance to dodge attacks
 
 
 
@@ -44,7 +44,7 @@ public class Npc extends Entity {
     private boolean kicking = false;
     private int kickAnimationTicks = 0;
     private static final int KICK_ANIMATION_DURATION_TICKS = 15; // Duration of kick animation
-    public static final double KICK_COUNTER_PROBABILITY = 0.20; // 20% chance to kick counter player attacks
+    public static final double KICK_COUNTER_PROBABILITY = 0.30; // 20% chance to kick counter player attacks
 
     // Centralized animation system using shared timing constants
     private final AnimationController animationController;

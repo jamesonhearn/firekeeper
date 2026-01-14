@@ -4,7 +4,9 @@ import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.untitledgame.logic.Direction;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 
 /**
  * Centralized animation controller that manages animation state for entities.
@@ -12,19 +14,21 @@ import java.util.EnumMap;
  */
 public class AnimationController {
     private static final int MS_PER_S = 1000;
-    private static final int TICK_MS = 50;
+    private static final int TICK_MS = 40;
 
-    private final EnumMap<AnimationType, EnumMap<Direction, Animation<TextureRegion>>> animations;
+    private final EnumMap<AnimationType, EnumMap<Direction, List<Animation<TextureRegion>>>> animations;
     private AnimationType currentAnimationType;
     private Direction currentDirection;
     private Animation<TextureRegion> currentAnimation;
     private float stateTime;
+    private int currentAnimationVariant; // Track which variant is active
 
     public AnimationController() {
         this.animations = new EnumMap<>(AnimationType.class);
         this.currentAnimationType = AnimationType.IDLE;
         this.currentDirection = Direction.DOWN;
         this.stateTime = 0f;
+        this.currentAnimationVariant = 0;
     }
 
     /**
@@ -32,7 +36,8 @@ public class AnimationController {
      */
     public void registerAnimation(AnimationType type, Direction direction, Animation<TextureRegion> animation) {
         animations.computeIfAbsent(type, k -> new EnumMap<>(Direction.class))
-                .put(direction, animation);
+                .computeIfAbsent(direction, d -> new ArrayList<>())
+                .add(animation);
     }
 
     /**
@@ -40,12 +45,27 @@ public class AnimationController {
      * Automatically handles state time transitions.
      */
     public void setAnimation(AnimationType type, Direction direction) {
-        EnumMap<Direction, Animation<TextureRegion>> byDirection = animations.get(type);
+        setAnimation(type, direction, 0);
+    }
+
+    /**
+     * Set the current animation type, direction, and variant.
+     * Automatically handles state time transitions.
+     */
+    public void setAnimation(AnimationType type, Direction direction, int variant) {
+        EnumMap<Direction, List<Animation<TextureRegion>>> byDirection = animations.get(type);
         if (byDirection == null) {
             return;
         }
 
-        Animation<TextureRegion> newAnimation = byDirection.get(direction);
+        List<Animation<TextureRegion>> variants = byDirection.get(direction);
+        if (variants == null || variants.isEmpty()) {
+            return;
+        }
+
+        // Clamp variant to available animations
+        int safeVariant = Math.max(0, Math.min(variant, variants.size() - 1));
+        Animation<TextureRegion> newAnimation = variants.get(safeVariant);
         if (newAnimation == null) {
             return;
         }
@@ -58,7 +78,8 @@ public class AnimationController {
             // Reset when switching TO IDLE, ATTACK, or DEATH to start from frame 0
             if (type == AnimationType.IDLE || type == AnimationType.ATTACK
                     || type == AnimationType.DEATH || type == AnimationType.TAKE_DAMAGE
-                    || type == AnimationType.DODGE1 || type == AnimationType.DODGE2) {
+                    || type == AnimationType.DODGE1 || type == AnimationType.DODGE2
+                    || type == AnimationType.KICK || type == AnimationType.BLOCK) {
                 stateTime = 0f;
             } else {
                 // Carry over state time for smooth transitions (e.g., walk to run)
@@ -72,6 +93,7 @@ public class AnimationController {
         currentAnimationType = type;
         currentDirection = direction;
         currentAnimation = newAnimation;
+        currentAnimationVariant = safeVariant;
     }
 
     /**

@@ -7,20 +7,26 @@ public class SpriteSheetConfig {
     private final int frameCount;
     private final int rowCount;
     private final String keyPrefix;
+    private final DirectionMode directionMode;
 
 
     public SpriteSheetConfig(String path, int frameWidth, int frameHeight, int frameCount, String keyPrefix) {
-        this(path, frameWidth, frameHeight, frameCount, 1, keyPrefix);
+        this(path, frameWidth, frameHeight, frameCount, 1, keyPrefix, DirectionMode.EIGHT_DIRECTIONAL);
     }
 
 
     public SpriteSheetConfig(String path, int frameWidth, int frameHeight, int frameCount, int rowCount, String keyPrefix) {
+        this(path, frameWidth, frameHeight, frameCount, rowCount, keyPrefix, DirectionMode.EIGHT_DIRECTIONAL);
+    }
+
+    public SpriteSheetConfig(String path, int frameWidth, int frameHeight, int frameCount, int rowCount, String keyPrefix, DirectionMode directionMode) {
         this.path = path;
         this.frameWidth = frameWidth;
         this.frameHeight = frameHeight;
         this.frameCount = frameCount;
         this.rowCount = rowCount;
         this.keyPrefix = keyPrefix;
+        this.directionMode = directionMode;
     }
 
     public String getPath() {
@@ -54,5 +60,10 @@ public class SpriteSheetConfig {
     public String getFrameKey(int row, int frameIndex) {
         return keyPrefix + "_" + row + "_" + frameIndex;
     }
+
+    public DirectionMode getDirectionMode() {
+        return directionMode;
+    }
+
 }
 

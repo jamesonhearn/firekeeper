@@ -195,6 +195,31 @@ public final class Tileset {
      * @return The row index in the sprite sheet (0-7)
      */
     public static int getDirectionRow(Direction direction) {
+        return getDirectionRow(direction, DirectionMode.EIGHT_DIRECTIONAL);
+    }
+
+    /**
+     * Get the sprite sheet row index for the given direction and direction mode.
+     *
+     * @param direction The game direction
+     * @param mode The direction mode of the sprite sheet
+     * @return The row index in the sprite sheet
+     */
+    public static int getDirectionRow(Direction direction, DirectionMode mode) {
+        if (mode == DirectionMode.EIGHT_DIRECTIONAL) {
+            return getDirectionRowEight(direction);
+        } else if (mode == DirectionMode.FOUR_DIRECTIONAL) {
+            return getDirectionRowFour(direction);
+        } else if (mode == DirectionMode.THREE_DIRECTIONAL_MIRRORED) {
+            return getDirectionRowThreeMirrored(direction);
+        }
+        return getDirectionRowEight(direction);
+    }
+
+    /**
+     * Get row for 8-directional sprite sheets.
+     */
+    private static int getDirectionRowEight(Direction direction) {
         return switch (direction) {
             case RIGHT -> 0;
             case DOWN_RIGHT -> 1;
@@ -206,7 +231,31 @@ public final class Tileset {
             case UP_RIGHT -> 7;
         };
     }
+    /**
+     * Get row for 4-directional sprite sheets.
+     * Maps diagonal directions to nearest cardinal direction.
+     */
+    private static int getDirectionRowFour(Direction direction) {
+        return switch (direction) {
+            case RIGHT, DOWN_RIGHT, UP_RIGHT -> 0; // RIGHT row (maps to 8-dir row 0)
+            case DOWN, DOWN_LEFT -> 2; // DOWN row (maps to 8-dir row 2)
+            case LEFT, UP_LEFT -> 4; // LEFT row (maps to 8-dir row 4)
+            case UP -> 6; // UP row (maps to 8-dir row 6)
+        };
+    }
 
+    /**
+     * Get row for 3-directional sprite sheets with mirrored left.
+     * UP/DOWN/RIGHT with LEFT mirrored from RIGHT.
+     */
+    private static int getDirectionRowThreeMirrored(Direction direction) {
+        return switch (direction) {
+            case RIGHT, DOWN_RIGHT, UP_RIGHT -> 0; // RIGHT row (maps to 8-dir row 0)
+            case DOWN, DOWN_LEFT -> 2; // DOWN row (maps to 8-dir row 2)
+            case LEFT, UP_LEFT -> 4; // LEFT row (mirrored, maps to 8-dir row 4)
+            case UP -> 6; // UP row (maps to 8-dir row 6)
+        };
+    }
 
     private static String directionKey(Direction direction) {
         return switch (direction) {
@@ -238,6 +287,7 @@ public final class Tileset {
 
     /**
      * Load frames for a specific animation and direction from the new sprite sheets.
+     * Uses 8-directional mode by default.
      *
      * @param atlas The texture atlas
      * @param characterType "player" or "npc"
@@ -248,8 +298,25 @@ public final class Tileset {
      */
     public static TextureRegion[] loadAnimationFrames(TextureAtlas atlas, String characterType,
                                                       String animationType, Direction direction, int maxFrames) {
+        return loadAnimationFrames(atlas, characterType, animationType, direction, maxFrames, DirectionMode.EIGHT_DIRECTIONAL);
+    }
+
+    /**
+     * Load frames for a specific animation and direction with specified direction mode.
+     *
+     * @param atlas The texture atlas
+     * @param characterType "player" or "npc"
+     * @param animationType e.g., "idle", "walk", "melee"
+     * @param direction The game direction
+     * @param maxFrames Maximum number of frames to attempt to load
+     * @param directionMode The direction mode of the sprite sheet
+     * @return Array of texture regions for the animation
+     */
+    public static TextureRegion[] loadAnimationFrames(TextureAtlas atlas, String characterType,
+                                                      String animationType, Direction direction, int maxFrames,
+                                                      DirectionMode directionMode) {
         List<TextureRegion> frames = new ArrayList<>();
-        int row = getDirectionRow(direction);
+        int row = getDirectionRow(direction, directionMode);
 
         for (int i = 0; i < maxFrames; i++) {
             String key = characterType + "_" + animationType + "_" + row + "_" + i;

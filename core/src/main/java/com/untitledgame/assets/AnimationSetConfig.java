@@ -32,14 +32,20 @@ public class AnimationSetConfig {
     private final String basePath;
     private final int frameWidth;
     private final int frameHeight;
+    private final DirectionMode directionMode;
 
     private final List<AnimationConfig> animations;
 
     public AnimationSetConfig(String characterType, String basePath, int frameWidth, int frameHeight) {
+        this(characterType, basePath, frameWidth, frameHeight, DirectionMode.EIGHT_DIRECTIONAL);
+    }
+
+    public AnimationSetConfig(String characterType, String basePath, int frameWidth, int frameHeight, DirectionMode directionMode) {
         this.characterType = characterType;
         this.basePath = basePath;
         this.frameWidth = frameWidth;
         this.frameHeight = frameHeight;
+        this.directionMode = directionMode;
         this.animations = new ArrayList<>();
     }
 
@@ -61,7 +67,7 @@ public class AnimationSetConfig {
             String path = basePath + "/" + anim.filename;
             String keyPrefix = characterType + "_" + anim.animationType;
 
-            configs.add(new SpriteSheetConfig(path, frameWidth, frameHeight, anim.frameCount, 8, keyPrefix));
+            configs.add(new SpriteSheetConfig(path, frameWidth, frameHeight, anim.frameCount, directionMode.getDirectionCount(), keyPrefix, directionMode));
         }
         return configs;
     }

@@ -41,7 +41,7 @@ import com.untitledgame.logic.items.ItemRegistry;
 import com.untitledgame.logic.items.ItemStack;
 import com.untitledgame.logic.npc.Npc;
 import com.untitledgame.logic.npc.NpcManager;
-
+import com.untitledgame.assets.DirectionMode;
 
 
 public class Engine implements Screen {
@@ -456,31 +456,32 @@ public class Engine implements Screen {
 
 
         // New 8-directional sprite sheets for player (64x64 frames, 15 frames, 8 rows)
-        AnimationSetConfig playerConfig = new AnimationSetConfig("player", "avatars/player", 64, 64);
-        playerConfig.addAnimation("idle", "Idle.png", 15);
-        playerConfig.addAnimation("walk", "Walk.png", 15);
-        playerConfig.addAnimation("melee_basic", "Melee.png", 15);
-        playerConfig.addAnimation("melee_secondary", "Melee2.png", 15);
-        playerConfig.addAnimation("melee_run", "MeleeRun.png", 15);
-        playerConfig.addAnimation("melee_spin", "MeleeSpin.png", 15);
-        playerConfig.addAnimation("block_end", "ShieldBlockMid.png", 15);
-        playerConfig.addAnimation("block_start", "ShieldBlockStart.png", 15);
-        playerConfig.addAnimation("kick", "Kick.png", 15);
+        AnimationSetConfig playerConfig = new AnimationSetConfig("player", "avatars/player", 54, 53, DirectionMode.FOUR_DIRECTIONAL);
+        //playerConfig.addAnimation("idle", "Idle.png", 15);
+        playerConfig.addAnimation("walk", "walk.png", 8);
+        //playerConfig.addAnimation("melee_basic", "attack.png", 8);
+        //playerConfig.addAnimation("melee_secondary", "Melee2.png", 15);
+        //playerConfig.addAnimation("melee_run", "MeleeRun.png", 15);
+        //playerConfig.addAnimation("melee_spin", "MeleeSpin.png", 15);
+        //playerConfig.addAnimation("block_end", "ShieldBlockMid.png", 15);
+        //playerConfig.addAnimation("block_start", "ShieldBlockStart.png", 15);
+        //playerConfig.addAnimation("kick", "Kick.png", 15);
+        //playerConfig.addAnimation("dash", "dash.png", 6);
         playerConfig.addAnimation("take_damage", "TakeDamage.png", 15);
-        playerConfig.addAnimation("death", "Die.png", 15);
+        playerConfig.addAnimation("death", "death.png", 8);
         configs.addAll(playerConfig.createSpriteSheetConfigs());
 
         // New 8-directional sprite sheets for NPC (64x64 frames, 15 frames, 8 rows)
-        AnimationSetConfig npcConfig = new AnimationSetConfig("npc", "avatars/NPC", 64, 64);
-        npcConfig.addAnimation("idle", "Idle.png", 15);
-        npcConfig.addAnimation("walk", "Walk.png", 15);
-        npcConfig.addAnimation("ATTACK", "Attack1.png", 15);
-        npcConfig.addAnimation("ATTACK", "Attack2.png", 15);
-        npcConfig.addAnimation("rolling", "Rolling.png", 15);
-        npcConfig.addAnimation("slide", "Slide.png", 15);
-        npcConfig.addAnimation("kick", "Kick.png", 15);
-        npcConfig.addAnimation("TAKE_DAMAGE", "TakeDamage.png", 15);
-        npcConfig.addAnimation("die", "Die.png", 15);
+        AnimationSetConfig npcConfig = new AnimationSetConfig("npc", "avatars/NPC", 50, 31);
+        //npcConfig.addAnimation("idle", "Idle.png", 15);
+        npcConfig.addAnimation("walk", "walk.png", 6);
+        npcConfig.addAnimation("ATTACK", "attack.png", 10);
+        //npcConfig.addAnimation("ATTACK", "Attack2.png", 15);
+        //npcConfig.addAnimation("rolling", "Rolling.png", 15);
+        //npcConfig.addAnimation("slide", "Slide.png", 15);
+        //npcConfig.addAnimation("kick", "Kick.png", 15);
+        npcConfig.addAnimation("TAKE_DAMAGE", "take_damage.png", 2);
+        npcConfig.addAnimation("die", "Die.png", 8);
         configs.addAll(npcConfig.createSpriteSheetConfigs());
 
 

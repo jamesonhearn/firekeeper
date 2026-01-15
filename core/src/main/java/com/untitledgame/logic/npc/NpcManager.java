@@ -35,7 +35,7 @@ public class NpcManager {
     /**lookup of NPCs by tile for hitbox collision */
     private final Map<Entity.Position, List<Npc>> npcByTile = new HashMap<>();
     private List<Integer> availableVariants = new ArrayList<>(List.of(0));
-    private static final double NPC_SPEED = 5.0;
+    private static final double NPC_SPEED = 2.0;
 
     private static final int DEFAULT_NPC_COUNT = 10;
 

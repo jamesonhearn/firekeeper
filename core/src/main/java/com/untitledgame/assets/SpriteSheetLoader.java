@@ -117,7 +117,7 @@ public class SpriteSheetLoader {
                                                      int frameWidth, int frameHeight, int frameCount) {
         // Row mapping: 0=UP (dest 6), 1=DOWN (dest 2), 2=RIGHT (dest 0)
         int[] srcRows = {0, 1, 2};
-        int[] destRows = {6, 2, 0}; // UP, DOWN, RIGHT
+        int[] destRows = {2, 6, 0}; // UP, DOWN, RIGHT
 
         for (int i = 0; i < srcRows.length; i++) {
             int srcRow = srcRows[i];

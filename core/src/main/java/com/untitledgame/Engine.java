@@ -472,7 +472,7 @@ public class Engine implements Screen {
         configs.addAll(playerConfig.createSpriteSheetConfigs());
 
         // New 8-directional sprite sheets for NPC (64x64 frames, 15 frames, 8 rows)
-        AnimationSetConfig npcConfig = new AnimationSetConfig("npc", "avatars/NPC", 50, 31, DirectionMode.THREE_DIRECTIONAL_MIRRORED);
+        AnimationSetConfig npcConfig = new AnimationSetConfig("npc", "avatars/NPC", 50, 31, DirectionMode.FOUR_DIRECTIONAL);
         //npcConfig.addAnimation("idle", "Idle.png", 15);
         npcConfig.addAnimation("walk", "walk.png", 6);
         npcConfig.addAnimation("ATTACK", "attack.png", 10);

@@ -13,8 +13,8 @@ import com.untitledgame.logic.Direction;
  */
 public class AnimationFactory {
 
-    private static final int WALK_TICKS = 1;
-    private static final int RUN_TICKS = 1;   // Same as walk, processing differentiates speed
+    private static final int WALK_TICKS = 3;
+    private static final int RUN_TICKS = 2;   // Same as walk, processing differentiates speed
     private static final int ATTACK_TICKS = 1;
     private static final int DEATH_TICKS = 2;
     private static final int IDLE_TICKS = 1;
@@ -73,7 +73,7 @@ public class AnimationFactory {
      * @param variant The NPC variant (currently all variants use the same animation set)
      */
     public static AnimationController createNpcController(TextureAtlas atlas, int variant) {
-        return createNpcController(atlas, variant, DirectionMode.EIGHT_DIRECTIONAL);
+        return createNpcController(atlas, variant, DirectionMode.FOUR_DIRECTIONAL);
     }
 
     /**
@@ -96,10 +96,10 @@ public class AnimationFactory {
         
         // Register ATTACK animations (NPCs have attack1 and attack2, we'll use attack1)
         // Changed to LOOP mode to support attack cooldown system
-        registerNpcAnimation(controller, atlas, AnimationType.ATTACK, "attack1", ATTACK_TICKS, Animation.PlayMode.LOOP, directionMode);
+        registerNpcAnimation(controller, atlas, AnimationType.ATTACK, "ATTACK", ATTACK_TICKS, Animation.PlayMode.LOOP, directionMode);
 
         // Register TAKE_DAMAGE animations
-        registerNpcAnimation(controller, atlas, AnimationType.TAKE_DAMAGE, "takedamage", ATTACK_TICKS, Animation.PlayMode.NORMAL, directionMode);
+        registerNpcAnimation(controller, atlas, AnimationType.TAKE_DAMAGE, "take_damage", ATTACK_TICKS, Animation.PlayMode.NORMAL, directionMode);
 
         // Register KICK animations (Counter-attack animation)
         registerNpcAnimation(controller, atlas, AnimationType.KICK, "kick", ATTACK_TICKS, Animation.PlayMode.NORMAL, directionMode);
@@ -109,7 +109,7 @@ public class AnimationFactory {
         registerNpcAnimation(controller, atlas, AnimationType.DODGE2, "slide", DODGE_TICKS, Animation.PlayMode.NORMAL, directionMode);
 
         // Register DEATH animations
-        registerNpcAnimation(controller, atlas, AnimationType.DEATH, "die", DEATH_TICKS, Animation.PlayMode.NORMAL, directionMode);
+        registerNpcAnimation(controller, atlas, AnimationType.DEATH, "death", DEATH_TICKS, Animation.PlayMode.NORMAL, directionMode);
         
         return controller;
     }

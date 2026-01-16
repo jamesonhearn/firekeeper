@@ -15,8 +15,9 @@ public class AnimationFactory {
 
     private static final int WALK_TICKS = 3;
     private static final int RUN_TICKS = 2;   // Same as walk, processing differentiates speed
-    private static final int ATTACK_TICKS = 1;
-    private static final int DEATH_TICKS = 2;
+    private static final int ATTACK_TICKS_PLAYER = 1;
+    private static final int ATTACK_TICKS_NPC = 3;
+    private static final int DEATH_TICKS = 5;
     private static final int IDLE_TICKS = 1;
     private static final int DODGE_TICKS = 1;
 
@@ -46,19 +47,19 @@ public class AnimationFactory {
         registerPlayerAnimation(controller, atlas, AnimationType.RUN, "walk", RUN_TICKS, Animation.PlayMode.LOOP, directionMode);
         
         // Register ATTACK animations
-        registerPlayerAnimation(controller, atlas, AnimationType.ATTACK, "melee_basic", ATTACK_TICKS, Animation.PlayMode.NORMAL, directionMode);
-        registerPlayerAnimation(controller, atlas, AnimationType.ATTACK, "melee_secondary", ATTACK_TICKS, Animation.PlayMode.NORMAL, directionMode);
-        registerPlayerAnimation(controller, atlas, AnimationType.ATTACK, "melee_spin", ATTACK_TICKS, Animation.PlayMode.NORMAL, directionMode);
-        registerPlayerAnimation(controller, atlas, AnimationType.ATTACK, "melee_run", ATTACK_TICKS, Animation.PlayMode.NORMAL, directionMode);
+        registerPlayerAnimation(controller, atlas, AnimationType.ATTACK, "melee_basic", ATTACK_TICKS_PLAYER, Animation.PlayMode.NORMAL, directionMode);
+        registerPlayerAnimation(controller, atlas, AnimationType.ATTACK, "melee_secondary", ATTACK_TICKS_PLAYER, Animation.PlayMode.NORMAL, directionMode);
+        registerPlayerAnimation(controller, atlas, AnimationType.ATTACK, "melee_spin", ATTACK_TICKS_PLAYER, Animation.PlayMode.NORMAL, directionMode);
+        registerPlayerAnimation(controller, atlas, AnimationType.ATTACK, "melee_run", ATTACK_TICKS_PLAYER, Animation.PlayMode.NORMAL, directionMode);
 
-        registerPlayerAnimation(controller, atlas, AnimationType.KICK, "kick", ATTACK_TICKS, Animation.PlayMode.NORMAL, directionMode);
+        registerPlayerAnimation(controller, atlas, AnimationType.KICK, "kick", ATTACK_TICKS_PLAYER, Animation.PlayMode.NORMAL, directionMode);
 
         // Register TAKE_DAMAGE animations
-        registerPlayerAnimation(controller, atlas, AnimationType.TAKE_DAMAGE, "take_damage", ATTACK_TICKS, Animation.PlayMode.NORMAL, directionMode);
+        registerPlayerAnimation(controller, atlas, AnimationType.TAKE_DAMAGE, "take_damage", ATTACK_TICKS_PLAYER, Animation.PlayMode.NORMAL, directionMode);
 
         // Register BLOCK animations (parrying/shield blocking)
-        registerPlayerAnimation(controller, atlas, AnimationType.BLOCK, "block_start", ATTACK_TICKS, Animation.PlayMode.NORMAL, directionMode);
-        registerPlayerAnimation(controller, atlas, AnimationType.BLOCK, "block_end", ATTACK_TICKS, Animation.PlayMode.NORMAL, directionMode);
+        registerPlayerAnimation(controller, atlas, AnimationType.BLOCK, "block_start", ATTACK_TICKS_PLAYER, Animation.PlayMode.NORMAL, directionMode);
+        registerPlayerAnimation(controller, atlas, AnimationType.BLOCK, "block_end", ATTACK_TICKS_PLAYER, Animation.PlayMode.NORMAL, directionMode);
 
         // Register DEATH animations
         registerPlayerAnimation(controller, atlas, AnimationType.DEATH, "death", DEATH_TICKS, Animation.PlayMode.NORMAL, directionMode);
@@ -96,13 +97,13 @@ public class AnimationFactory {
         
         // Register ATTACK animations (NPCs have attack1 and attack2, we'll use attack1)
         // Changed to LOOP mode to support attack cooldown system
-        registerNpcAnimation(controller, atlas, AnimationType.ATTACK, "ATTACK", ATTACK_TICKS, Animation.PlayMode.LOOP, directionMode);
+        registerNpcAnimation(controller, atlas, AnimationType.ATTACK, "ATTACK", ATTACK_TICKS_NPC, Animation.PlayMode.LOOP, directionMode);
 
         // Register TAKE_DAMAGE animations
-        registerNpcAnimation(controller, atlas, AnimationType.TAKE_DAMAGE, "take_damage", ATTACK_TICKS, Animation.PlayMode.NORMAL, directionMode);
+        registerNpcAnimation(controller, atlas, AnimationType.TAKE_DAMAGE, "take_damage", ATTACK_TICKS_NPC, Animation.PlayMode.NORMAL, directionMode);
 
         // Register KICK animations (Counter-attack animation)
-        registerNpcAnimation(controller, atlas, AnimationType.KICK, "kick", ATTACK_TICKS, Animation.PlayMode.NORMAL, directionMode);
+        registerNpcAnimation(controller, atlas, AnimationType.KICK, "kick", ATTACK_TICKS_NPC, Animation.PlayMode.NORMAL, directionMode);
 
         // Register DODGE animations (Rolling spritesheet)
         registerNpcAnimation(controller, atlas, AnimationType.DODGE1, "rolling", DODGE_TICKS, Animation.PlayMode.NORMAL, directionMode);

@@ -54,38 +54,62 @@ public enum Direction {
      * @param vy velocity Y component
      * @return the closest Direction, or DOWN if velocity is zero
      */
+//    public static Direction fromVelocity(double vx, double vy) {
+//        // If no movement, return a default direction
+//        if (Math.abs(vx) < 1e-6 && Math.abs(vy) < 1e-6) {
+//            return DOWN;
+//        }
+//
+//        // Calculate angle in radians (-PI to PI)
+//        double angle = Math.atan2(vy, vx);
+//
+//        // Convert to degrees and normalize to 0-360
+//        double degrees = Math.toDegrees(angle);
+//        if (degrees < 0) {
+//            degrees += 360;
+//        }
+//
+//        // Map angle to 8 directions
+//        // East(RIGHT)=0°, North(UP)=90°, West(LEFT)=180°, South(DOWN)=270°
+//        // Divide circle into 8 slices of 45° each
+//
+//        // Add 22.5 degrees offset so each direction occupies a 45° slice centered on it
+//        double adjusted = (degrees + 22.5) % 360;
+//        int octant = (int)(adjusted / 45.0);
+//
+//        return switch(octant) {
+//            case 0 -> RIGHT;           // 337.5° - 22.5° (East)
+//            case 1 -> UP_RIGHT;        // 22.5° - 67.5° (Northeast)
+//            case 2 -> UP;              // 67.5° - 112.5° (North)
+//            case 3 -> UP_LEFT;         // 112.5° - 157.5° (Northwest)
+//            case 4 -> LEFT;            // 157.5° - 202.5° (West)
+//            case 5 -> DOWN_LEFT;       // 202.5° - 247.5° (Southwest)
+//            case 6 -> DOWN;            // 247.5° - 292.5° (South)
+//            case 7 -> DOWN_RIGHT;      // 292.5° - 337.5° (Southeast)
+//            default -> DOWN;
+//        };
+//    }
+
     public static Direction fromVelocity(double vx, double vy) {
         // If no movement, return a default direction
         if (Math.abs(vx) < 1e-6 && Math.abs(vy) < 1e-6) {
             return DOWN;
         }
-        
-        // Calculate angle in radians (-PI to PI)
-        double angle = Math.atan2(vy, vx);
-        
-        // Convert to degrees and normalize to 0-360
-        double degrees = Math.toDegrees(angle);
-        if (degrees < 0) {
-            degrees += 360;
-        }
-        
-        // Map angle to 8 directions
-        // East(RIGHT)=0°, North(UP)=90°, West(LEFT)=180°, South(DOWN)=270°
-        // Divide circle into 8 slices of 45° each
-        
-        // Add 22.5 degrees offset so each direction occupies a 45° slice centered on it
-        double adjusted = (degrees + 22.5) % 360;
-        int octant = (int)(adjusted / 45.0);
-        
-        return switch(octant) {
-            case 0 -> RIGHT;           // 337.5° - 22.5° (East)
-            case 1 -> UP_RIGHT;        // 22.5° - 67.5° (Northeast)
-            case 2 -> UP;              // 67.5° - 112.5° (North)
-            case 3 -> UP_LEFT;         // 112.5° - 157.5° (Northwest)
-            case 4 -> LEFT;            // 157.5° - 202.5° (West)
-            case 5 -> DOWN_LEFT;       // 202.5° - 247.5° (Southwest)
-            case 6 -> DOWN;            // 247.5° - 292.5° (South)
-            case 7 -> DOWN_RIGHT;      // 292.5° - 337.5° (Southeast)
+
+        // angle in degrees [0, 360)
+        double degrees = Math.toDegrees(Math.atan2(vy, vx));
+        if (degrees < 0) degrees += 360;
+
+        // 4 directions => 90° each.
+        // Add 45° so boundaries are centered on RIGHT/UP/LEFT/DOWN
+        double adjusted = (degrees + 45.0) % 360.0;
+        int quadrant = (int)(adjusted / 90.0);
+
+        return switch (quadrant) {
+            case 0 -> RIGHT; // 315°..45° (center 0°)
+            case 1 -> UP;    // 45°..135° (center 90°)
+            case 2 -> LEFT;  // 135°..225° (center 180°)
+            case 3 -> DOWN;  // 225°..315° (center 270°)
             default -> DOWN;
         };
     }

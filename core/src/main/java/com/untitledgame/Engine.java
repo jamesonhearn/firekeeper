@@ -30,6 +30,7 @@ import com.untitledgame.ui.InventoryOverlay;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 import com.untitledgame.ui.UiFont;
 import com.untitledgame.utils.FileUtils;
@@ -457,9 +458,9 @@ public class Engine implements Screen {
 
         // New 8-directional sprite sheets for player (64x64 frames, 15 frames, 8 rows)
         AnimationSetConfig playerConfig = new AnimationSetConfig("player", "avatars/player", 54, 53, DirectionMode.THREE_DIRECTIONAL_MIRRORED);
-        //playerConfig.addAnimation("idle", "Idle.png", 15);
+        playerConfig.addAnimation("idle", "idle.png", 1);
         playerConfig.addAnimation("walk", "walk.png", 8);
-        playerConfig.addAnimation("melee_basic", "attack.png", 8);
+        playerConfig.addAnimation("melee_basic", "attack.png", 6);
         //playerConfig.addAnimation("melee_secondary", "Melee2.png", 15);
         //playerConfig.addAnimation("melee_run", "MeleeRun.png", 15);
         //playerConfig.addAnimation("melee_spin", "MeleeSpin.png", 15);

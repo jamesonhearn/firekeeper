@@ -13,11 +13,12 @@ import com.untitledgame.logic.Direction;
  */
 public class AnimationFactory {
 
-    private static final int WALK_TICKS = 3;
+    private static final int WALK_TICKS_PLAYER = 3;
+    private static final int WALK_TICKS_NPC = 6;
     private static final int RUN_TICKS = 2;   // Same as walk, processing differentiates speed
     private static final int ATTACK_TICKS_PLAYER = 1;
-    private static final int ATTACK_TICKS_NPC = 3;
-    private static final int DEATH_TICKS = 5;
+    private static final int ATTACK_TICKS_NPC = 2;
+    private static final int DEATH_TICKS = 2;
     private static final int IDLE_TICKS = 1;
     private static final int DODGE_TICKS = 1;
 
@@ -41,7 +42,7 @@ public class AnimationFactory {
         registerPlayerAnimation(controller, atlas, AnimationType.IDLE, "idle", IDLE_TICKS, Animation.PlayMode.LOOP, directionMode);
 
         // Register WALK animations
-        registerPlayerAnimation(controller, atlas, AnimationType.WALK, "walk", WALK_TICKS, Animation.PlayMode.LOOP, directionMode);
+        registerPlayerAnimation(controller, atlas, AnimationType.WALK, "walk", WALK_TICKS_PLAYER, Animation.PlayMode.LOOP, directionMode);
 
         // Register RUN animations (same frames as walk, faster timing)
         registerPlayerAnimation(controller, atlas, AnimationType.RUN, "walk", RUN_TICKS, Animation.PlayMode.LOOP, directionMode);
@@ -93,7 +94,7 @@ public class AnimationFactory {
         registerNpcAnimation(controller, atlas, AnimationType.IDLE, "idle", IDLE_TICKS, Animation.PlayMode.LOOP, directionMode);
         
         // Register WALK animations
-        registerNpcAnimation(controller, atlas, AnimationType.WALK, "walk", WALK_TICKS, Animation.PlayMode.LOOP, directionMode);
+        registerNpcAnimation(controller, atlas, AnimationType.WALK, "walk", WALK_TICKS_NPC, Animation.PlayMode.LOOP, directionMode);
         
         // Register ATTACK animations (NPCs have attack1 and attack2, we'll use attack1)
         // Changed to LOOP mode to support attack cooldown system

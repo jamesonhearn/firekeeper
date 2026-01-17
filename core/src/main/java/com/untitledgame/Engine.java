@@ -208,7 +208,7 @@ public class Engine implements Screen {
 
     };
 
-
+    private static final double NPC_WALK_SPEED = 2.5;
     private static final double AVATAR_WALK_SPEED = 5.0;
     private static final double AVATAR_DASH_DISTANCE = 3.0;
     private static final double AVATAR_DASH_DURATION_SECONDS = 0.1;
@@ -228,6 +228,8 @@ public class Engine implements Screen {
     private static final int AVATAR_BLOCK_TICKS = Math.max(1, (int) Math.round(60.0 / TICK_MS));
     private static final double PARRY_WINDOW_MS = 200.0; // 300ms window to parry after activation
 
+    // Pause after death animation completes before showing death screen
+    private static final int DEATH_PAUSE_TICKS = Math.max(1, (int) Math.round(500.0 / TICK_MS)); // 500ms pause
 
     private char lastFacing = 's';
     private boolean attackDown = false;
@@ -238,6 +240,9 @@ public class Engine implements Screen {
     // Parry system
     private boolean parryDown = false;
     private boolean prevParryDown = false;
+
+    // Death animation pause tracking
+    private int deathPauseTicks = 0;
 
     // Kick system
     private boolean kickDown = false;
@@ -469,7 +474,7 @@ public class Engine implements Screen {
         //playerConfig.addAnimation("kick", "Kick.png", 15);
         //playerConfig.addAnimation("dash", "dash.png", 6);
         //playerConfig.addAnimation("take_damage", "TakeDamage.png", 15);
-        playerConfig.addAnimation("death", "death.png", 8);
+        playerConfig.addAnimation("death", "death.png", 18);
         configs.addAll(playerConfig.createSpriteSheetConfigs());
 
         // New 8-directional sprite sheets for NPC (64x64 frames, 15 frames, 8 rows)
@@ -481,8 +486,8 @@ public class Engine implements Screen {
         //npcConfig.addAnimation("rolling", "Rolling.png", 15);
         //npcConfig.addAnimation("slide", "Slide.png", 15);
         //npcConfig.addAnimation("kick", "Kick.png", 15);
-        npcConfig.addAnimation("TAKE_DAMAGE", "take_damage.png", 2);
-        npcConfig.addAnimation("die", "death.png", 8);
+        npcConfig.addAnimation("take_damage", "take_damage.png", 2);
+        npcConfig.addAnimation("death", "death.png", 8);
         configs.addAll(npcConfig.createSpriteSheetConfigs());
 
 
@@ -1669,6 +1674,8 @@ public class Engine implements Screen {
                 integrateEntityMotion(npc, deltaSeconds, others);
                 continue;
             }
+            Vector2 v = facingVector(npc.facing());
+            npc.setVelocity(v.x * NPC_WALK_SPEED, v.y * NPC_WALK_SPEED);
             npc.tickStagger(deltaSeconds);
             // AI is fully responsible for setting velocity
             npc.updateAnimation((float) deltaSeconds);
@@ -1834,6 +1841,7 @@ public class Engine implements Screen {
         avatar.endAttack();
         attackDown = false;
         clampLightToDeathRadius();
+        deathPauseTicks = 0; // Reset the pause counter
         // Update animation to DEATH - the Avatar's updateAnimation will handle this based on health state
         avatar.updateAnimation(0f);
         avatarSprite = avatar.currentFrame();
@@ -1882,7 +1890,12 @@ public class Engine implements Screen {
             gameState = GameState.DEAD;
         }
         if (gameState == GameState.DYING && avatar.isAnimationFinished()) {
-            gameState = GameState.DEAD;
+            // Start the pause counter after animation finishes
+            deathPauseTicks++;
+            if (deathPauseTicks >= DEATH_PAUSE_TICKS) {
+                gameState = GameState.DEAD;
+                deathPauseTicks = 0; // Reset for next time
+            }
         }
         if (gameState == GameState.DEAD) {
             handleDeathMenuInput();
@@ -2554,7 +2567,7 @@ public class Engine implements Screen {
 
     private void updateMenu() {
         if (!menuMusicStarted) {
-            music.playThenCallback("audio/cavegame.wav", () -> music.playLoop("audio/main_menu.wav"));
+            music.play("audio/test.mp3");
             menuMusicStarted = true;
         }
         while (hasNextKeyTyped()) {

@@ -46,6 +46,12 @@ public class Npc extends Entity {
     private static final int KICK_ANIMATION_DURATION_TICKS = 15; // Duration of kick animation
     public static final double KICK_COUNTER_PROBABILITY = 0.30; // 20% chance to kick counter player attacks
 
+    // Death state tracking
+    private boolean dying = false;
+
+    // Take damage animation tracking
+    private boolean justStaggered = false; // Track if NPC was just hit for frame control
+
     // Centralized animation system using shared timing constants
     private final AnimationController animationController;
 
@@ -138,6 +144,22 @@ public class Npc extends Entity {
         return kicking;
     }
 
+    public boolean isDying() {
+        return dying;
+    }
+
+    public void setDying(boolean dying) {
+        this.dying = dying;
+    }
+
+    public boolean isAnimationFinished() {
+        if (animationController == null) {
+            return true;
+        }
+        return animationController.isAnimationFinished();
+    }
+
+
     public void triggerKick(Direction kickDirection) {
         if (kicking || isStaggered() || health() == null || health().isDepleted()) {
             return;
@@ -154,6 +176,11 @@ public class Npc extends Entity {
      * Advance one tick of NPC simulation: possibly move.
      */
     public void tick(WorldView view) {
+        // Don't tick if dying - just let animation finish
+        if (dying) {
+            setVelocity(0.0, 0.0);
+            return;
+        }
         moveTick += 1;
 
         // Handle kick animation
@@ -286,7 +313,9 @@ public class Npc extends Entity {
     public void updateAnimation(float deltaSeconds) {
         // Determine animation type based on state and velocity (not waypoints)
         AnimationType desiredType = AnimationType.IDLE;
-        if (kicking) {
+        if (dying) {
+            desiredType = AnimationType.DEATH;
+        } else if (kicking) {
             desiredType = AnimationType.KICK;
         } else if (dodging) {
             boolean b = Math.random() <= 0.5;
@@ -378,6 +407,22 @@ public class Npc extends Entity {
      * @return The current frame of the NPC's animation
      */
     public TextureRegion currentFrame() {
+            // Special handling for TAKE_DAMAGE animation
+            if (animationController.getCurrentAnimationType() == AnimationType.TAKE_DAMAGE && isStaggered()) {
+                int currentFrameIndex = animationController.getCurrentFrameIndex();
+
+                if (justStaggered) {
+                    // Show first frame (index 0) when just hit
+                    justStaggered = false;
+                    TextureRegion frame = animationController.getFrameAtIndex(0);
+                    return frame != null ? frame : animationController.getCurrentFrame();
+                } else if (currentFrameIndex >= 1) {
+                    // Hold on second frame (index 1) during knockback/stagger
+                    TextureRegion frame = animationController.getFrameAtIndex(1);
+                    return frame != null ? frame : animationController.getCurrentFrame();
+                }
+            }
+
         return animationController.getCurrentFrame();
     }
 
@@ -454,6 +499,12 @@ public class Npc extends Entity {
         // Smoothly interpolate drawX/drawY toward actual x/y
         drawX += ((posX - 0.5) - drawX) * speed;
         drawY += ((posY - 0.5) - drawY) * speed;
+    }
+
+    @Override
+    protected void onStaggered() {
+        super.onStaggered();
+        justStaggered = true; // Mark that we just got hit
     }
 
     private enum State {

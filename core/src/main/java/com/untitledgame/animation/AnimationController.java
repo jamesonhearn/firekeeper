@@ -120,6 +120,34 @@ public class AnimationController {
     }
 
     /**
+     * Get a specific frame by index from the current animation.
+     * Returns null if index is out of bounds or no animation is set.
+     * @param frameIndex The index of the frame to retrieve (0-based)
+     * @return The texture region at the specified index, or null if invalid
+     */
+    public TextureRegion getFrameAtIndex(int frameIndex) {
+        if (currentAnimation == null) {
+            return null;
+        }
+        TextureRegion[] frames = currentAnimation.getKeyFrames();
+        if (frameIndex < 0 || frameIndex >= frames.length) {
+            return null;
+        }
+        return frames[frameIndex];
+    }
+
+    /**
+     * Get the frame index based on the current state time.
+     * @return The current frame index, or -1 if no animation is set
+     */
+    public int getCurrentFrameIndex() {
+        if (currentAnimation == null) {
+            return -1;
+        }
+        return currentAnimation.getKeyFrameIndex(stateTime);
+    }
+
+    /**
      * Check if the current animation has finished (for non-looping animations).
      */
     public boolean isAnimationFinished() {

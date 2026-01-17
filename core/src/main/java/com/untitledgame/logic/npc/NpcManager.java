@@ -121,6 +121,28 @@ public class NpcManager {
         for (Npc npc : npcs) {
             npc.tick(sharedView);
         }
+
+        // Remove NPCs that have finished their death animation
+        removeDeadNpcs();
+    }
+
+    /**
+     * Remove NPCs that have finished their death animation and create corpses.
+     */
+    private void removeDeadNpcs() {
+        List<Npc> toRemove = new ArrayList<>();
+        for (Npc npc : npcs) {
+            if (npc.isDying() && npc.isAnimationFinished()) {
+                toRemove.add(npc);
+            }
+        }
+
+        for (Npc npc : toRemove) {
+            removeNpcPosition(new Entity.Position(npc.x(), npc.y()), npc);
+            npcs.remove(npc);
+            // Create corpse using static tile representation
+            corpses.add(new Corpse(npc.x(), npc.y(), com.untitledgame.assets.Tileset.NPC_CORPSE));
+        }
     }
 
     public List<Corpse> corpses() {
@@ -216,13 +238,12 @@ public class NpcManager {
     }
 
     private void handleNpcDeath(Npc npc) {
-        removeNpcPosition(new Entity.Position(npc.x(), npc.y()), npc);
-        npcs.remove(npc);
-        // Create corpse using static tile representation
-        // Future enhancement: Could use death animation final frame or dedicated corpse sprites
-        corpses.add(new Corpse(npc.x(), npc.y(), com.untitledgame.assets.Tileset.NPC_CORPSE));
-        combatService.unregister(npc);
-        deathHandler.accept(npc);
+        // Set NPC to dying state to play death animation
+        // NPC will be removed after animation completes
+        npc.setDying(true);
+        npc.clearStagger(); // Clear stagger so death animation plays immediately
+        combatService.unregister(npc); // Unregister from combat immediately
+        deathHandler.accept(npc); // Notify death handler
     }
 
     public void restoreState(List<Npc> restoredNpcs, List<Corpse> restoredCorpses) {

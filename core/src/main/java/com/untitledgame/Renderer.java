@@ -50,7 +50,7 @@ public class Renderer implements AutoCloseable {
     private int worldHeight;
     private int viewOriginX;
     private int viewOriginY;
-    private float worldScale = 1.0f; // 1.0 = current behavior
+    private float worldScale = 1.7f; // 1.0 = current behavior
     private static final double CAMERA_SMOOTH = 0.20;
     private static final double SMOOTH_SPEED = 0.10;
     private static final float DEFAULT_FALLOFF = 3.0f;

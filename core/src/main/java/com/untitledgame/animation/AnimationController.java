@@ -79,7 +79,8 @@ public class AnimationController {
             if (type == AnimationType.IDLE || type == AnimationType.ATTACK
                     || type == AnimationType.DEATH || type == AnimationType.TAKE_DAMAGE
                     || type == AnimationType.DODGE1 || type == AnimationType.DODGE2
-                    || type == AnimationType.KICK || type == AnimationType.BLOCK) {
+                    || type == AnimationType.KICK || type == AnimationType.BLOCK
+                    || type == AnimationType.DASH) {
                 stateTime = 0f;
             } else {
                 // Carry over state time for smooth transitions (e.g., walk to run)

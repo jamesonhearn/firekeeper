@@ -193,7 +193,16 @@ public class Renderer implements AutoCloseable {
         if (worldWidth <= 0 || worldHeight <= 0) return;
         if (viewWidth <= 0 || viewHeight <= 0) return;
 
-        // Desired camera origin in tile coordinates (center on avatar)
+
+        // Calculate effective view dimensions and margins accounting for worldScale
+        // When worldScale > 1 (zoomed in), only the center portion of viewport is visible
+        // The zoom creates invisible margins on all sides
+        double effectiveViewWidth = viewWidth / worldScale;
+        double effectiveViewHeight = viewHeight / worldScale;
+        double marginX = (viewWidth - effectiveViewWidth) / 2.0;
+        double marginY = (viewHeight - effectiveViewHeight) / 2.0;
+
+        // Desired camera origin in tile coordinates (center avatar at viewport center)
         double targetCamTileX = avatarFx - viewWidth / 2.0;
         double targetCamTileY = avatarFy - viewHeight / 2.0;
 
@@ -201,12 +210,16 @@ public class Renderer implements AutoCloseable {
         camTileX += (targetCamTileX - camTileX) * CAMERA_SMOOTH;
         camTileY += (targetCamTileY - camTileY) * CAMERA_SMOOTH;
 
-        // Clamp in DOUBLE space (important)
-        double maxCamX = Math.max(0, worldWidth - viewWidth);
-        double maxCamY = Math.max(0, worldHeight - viewHeight);
-        camTileX = Math.max(0.0, Math.min(maxCamX, camTileX));
-        camTileY = Math.max(0.0, Math.min(maxCamY, camTileY));
+        // Clamp accounting for invisible viewport margins
+        // Allow negative camera position to show left/bottom edges within visible area
+        // Reduce max camera position to show right/top edges within visible area
+        double minCamX = -marginX;
+        double maxCamX = worldWidth - viewWidth + marginX;
+        double minCamY = -marginY;
+        double maxCamY = worldHeight - viewHeight + marginY;
 
+        camTileX = Math.max(minCamX, Math.min(maxCamX, camTileX));
+        camTileY = Math.max(minCamY, Math.min(maxCamY, camTileY));
 
 // Use floor to prevent flip-flop jitter
         int newOriginX = (int) Math.floor(camTileX);

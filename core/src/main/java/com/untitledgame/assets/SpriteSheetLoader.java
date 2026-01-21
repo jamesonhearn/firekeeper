@@ -151,10 +151,10 @@ public class SpriteSheetLoader {
      */
     private static int mapFourDirectionalToEightDirectional(int fourDirRow) {
         return switch (fourDirRow) {
-            case 0 -> 6; // UP
-            case 1 -> 2; // DOWN
-            case 2 -> 4; // LEFT
-            case 3 -> 0; // RIGHT
+            case 0 -> 2; // UP
+            case 1 -> 6; // DOWN
+            case 2 -> 0; // LEFT
+            case 3 -> 4; // RIGHT
             default -> fourDirRow;
         };
     }

@@ -8,6 +8,7 @@ public enum AnimationType {
     IDLE,
     WALK,
     RUN,
+    DASH,
     ATTACK,
     DEATH,
     TAKE_DAMAGE,

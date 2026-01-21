@@ -43,8 +43,8 @@ public class Avatar extends Entity {
     // Dash state tracking
     private boolean dashInProgress = false;
     private double dashDistanceRemaining = 0.0;
-    private static final double AVATAR_DASH_DISTANCE = 3.0;
-
+    private static final double AVATAR_DASH_DISTANCE = 6.0;
+    private Direction dashDirection = Direction.DOWN;
 
 
     public Avatar(int x, int y, int lives, HealthComponent health, AnimationController animationController) {
@@ -127,7 +127,8 @@ public class Avatar extends Entity {
                 case SPIN -> 2;       // melee_spin
             };
         } else if (dashInProgress) {
-            desiredType = AnimationType.RUN;
+            desiredType = AnimationType.DASH;
+            facing = dashDirection;
         } else if (Math.abs(velocityX) > 1e-6 || Math.abs(velocityY) > 1e-6) {
             desiredType = AnimationType.WALK;
         }
@@ -283,12 +284,17 @@ public class Avatar extends Entity {
     }
 
     public void startDash(Direction direction) {
-        if (dashInProgress || isStaggered()) {
-            return;
-        }
+        if (dashInProgress || isStaggered()) return;
+
         dashInProgress = true;
         dashDistanceRemaining = AVATAR_DASH_DISTANCE;
-        setFacing(direction);
+
+        dashDirection = (direction != null) ? direction : facing; // fallback
+
+        // Optional: also force facing to match dash direction
+        setFacing(dashDirection);
+
+        if (animationController != null) animationController.resetStateTime();
     }
 
     public void tickDash(double movedDistance) {

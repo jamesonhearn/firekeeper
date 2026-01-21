@@ -210,8 +210,8 @@ public class Engine implements Screen {
 
     private static final double NPC_WALK_SPEED = 2.5;
     private static final double AVATAR_WALK_SPEED = 5.0;
-    private static final double AVATAR_DASH_DISTANCE = 3.0;
-    private static final double AVATAR_DASH_DURATION_SECONDS = 0.1;
+    private static final double AVATAR_DASH_DISTANCE = 8.0;
+    private static final double AVATAR_DASH_DURATION_SECONDS = 0.3;
     private static final double AVATAR_DASH_SPEED = AVATAR_DASH_DISTANCE / AVATAR_DASH_DURATION_SECONDS;
     private static final double MELEE_HALF_WIDTH = 1;
     private static final double MELEE_REACH = 1;
@@ -462,7 +462,7 @@ public class Engine implements Screen {
 
 
         // New 8-directional sprite sheets for player (64x64 frames, 15 frames, 8 rows)
-        AnimationSetConfig playerConfig = new AnimationSetConfig("player", "avatars/player", 54, 53, DirectionMode.THREE_DIRECTIONAL_MIRRORED);
+        AnimationSetConfig playerConfig = new AnimationSetConfig("player", "avatars/player", 54, 53, DirectionMode.FOUR_DIRECTIONAL);
         playerConfig.addAnimation("idle", "idle.png", 1);
         playerConfig.addAnimation("walk", "walk.png", 8);
         playerConfig.addAnimation("melee_basic", "attack.png", 6);
@@ -472,7 +472,7 @@ public class Engine implements Screen {
         //playerConfig.addAnimation("block_end", "ShieldBlockMid.png", 15);
         //playerConfig.addAnimation("block_start", "ShieldBlockStart.png", 15);
         //playerConfig.addAnimation("kick", "Kick.png", 15);
-        //playerConfig.addAnimation("dash", "dash.png", 6);
+        playerConfig.addAnimation("dash", "dash.png", 6);
         //playerConfig.addAnimation("take_damage", "TakeDamage.png", 15);
         playerConfig.addAnimation("death", "death.png", 18);
         configs.addAll(playerConfig.createSpriteSheetConfigs());

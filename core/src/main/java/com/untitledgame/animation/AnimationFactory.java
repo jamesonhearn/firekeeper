@@ -18,9 +18,11 @@ public class AnimationFactory {
     private static final int RUN_TICKS = 2;   // Same as walk, processing differentiates speed
     private static final int ATTACK_TICKS_PLAYER = 1;
     private static final int ATTACK_TICKS_NPC = 2;
-    private static final int DEATH_TICKS = 2;
+    private static final int DEATH_TICKS = 5;
     private static final int IDLE_TICKS = 1;
     private static final int DODGE_TICKS = 1;
+    private static final int DASH_TICKS = 3;
+
 
     /**
      * Create an AnimationController for the player avatar.
@@ -40,6 +42,10 @@ public class AnimationFactory {
         
         // Register IDLE animations (single frame from first frame of walk)
         registerPlayerAnimation(controller, atlas, AnimationType.IDLE, "idle", IDLE_TICKS, Animation.PlayMode.LOOP, directionMode);
+
+        // Register DASH animations
+        registerPlayerAnimation(controller, atlas, AnimationType.DASH, "dash", DASH_TICKS, Animation.PlayMode.NORMAL, directionMode);
+
 
         // Register WALK animations
         registerPlayerAnimation(controller, atlas, AnimationType.WALK, "walk", WALK_TICKS_PLAYER, Animation.PlayMode.LOOP, directionMode);

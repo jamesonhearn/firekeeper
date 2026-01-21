@@ -2498,7 +2498,7 @@ public class Engine implements Screen {
         // When movement stops, snap to the target tile to avoid post-input sliding.
         drawX = avatar.posX() - 0.5;
         drawY = avatar.posY() - 0.5;
-        double avatarScale = 3.0;   // adjust this number if starts to look laggy
+        double avatarScale = 4.0;   // adjust this number if starts to look laggy
         return new Renderer.AvatarDraw(drawX, drawY, avatarScale, avatarSprite);
     }
 

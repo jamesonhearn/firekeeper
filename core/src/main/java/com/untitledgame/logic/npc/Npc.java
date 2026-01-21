@@ -426,12 +426,6 @@ public class Npc extends Entity {
         return animationController.getCurrentFrame();
     }
 
-    /**
-     * @deprecated As of version 1.0.0, replaced by {@link #currentFrame()}
-     * This method will be removed in version 2.0.0.
-     * Use currentFrame() to get the proper animated texture region.
-     * Note: This method returns a static fallback tile and does NOT reflect the NPC's actual visual state.
-     */
     @Deprecated
     public TETile currentTile() {
         // Return a static NPC tile for backward compatibility
